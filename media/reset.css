@@ -1,0 +1,78 @@
+html {
+    box-sizing: border-box;
+    font-size: 13px;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--vscode-font-family);
+    font-weight: var(--vscode-font-weight);
+    font-size: var(--vscode-font-size);
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-editor-background);
+    line-height: 1.5;
+}
+
+*,
+*:before,
+*:after {
+    box-sizing: inherit;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+p {
+    margin-top: 0;
+    margin-bottom: 1em;
+}
+
+a {
+    color: var(--vscode-textLink-foreground);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--vscode-textLink-activeForeground);
+    text-decoration: underline;
+}
+
+button {
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    color: var(--vscode-button-foreground);
+    background-color: var(--vscode-button-background);
+    border: 1px solid var(--vscode-button-border);
+    border-radius: 2px;
+    padding: 4px 12px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+button:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+
+input {
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    color: var(--vscode-input-foreground);
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 2px;
+    padding: 4px 8px;
+}
+
+input:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    border-color: var(--vscode-focusBorder);
+}

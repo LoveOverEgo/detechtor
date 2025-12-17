@@ -1,0 +1,241 @@
+/* Additional styles for main content */
+
+/* Feature Tags */
+.feature-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 6px;
+    background: var(--vscode-textBlockQuote-background);
+    color: var(--vscode-textBlockQuote-foreground);
+    border-radius: 3px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+/* Test Structure */
+.test-structure {
+    margin-top: 20px;
+    padding: 16px;
+    background: var(--vscode-editor-background);
+    border-radius: 6px;
+    border: 1px solid var(--vscode-panel-border);
+}
+
+.structure-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.structure-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.structure-label {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    min-width: 120px;
+}
+
+.structure-value {
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--vscode-editor-font-family);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--vscode-textLink-foreground);
+}
+
+.structure-value:hover {
+    color: var(--vscode-textLink-activeForeground);
+}
+
+/* Info Box */
+.info-box {
+    padding: 12px 16px;
+    background: var(--vscode-textBlockQuote-background);
+    border-left: 3px solid var(--vscode-textLink-foreground);
+    border-radius: 4px;
+    margin-top: 16px;
+    font-size: 12px;
+}
+
+.info-box strong {
+    color: var(--vscode-textLink-foreground);
+}
+
+/* File Links */
+.file-link {
+    color: var(--vscode-textLink-foreground);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--vscode-textLink-foreground);
+}
+
+.file-link:hover {
+    color: var(--vscode-textLink-activeForeground);
+    text-decoration-color: var(--vscode-textLink-activeForeground);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 12px;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .framework-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .dependency-categories {
+        grid-template-columns: 1fr;
+
+        /* Virtualized dependency list */
+        .dependency-list.virtualized {
+            position: relative;
+            height: 240px;           /* fixed viewport height */
+            overflow-y: auto;
+        }
+
+        .dep-spacer {
+            width: 100%;
+        }
+
+        .dep-viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+        }
+
+        .dependency-item {
+            height: 32px;            /* MUST be fixed */
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    }
+    
+    .testing-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .structure-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .header-subtitle {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .dependency-stats {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.section {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.card {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Loading State */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--vscode-textLink-foreground);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+/* Status Colors */
+.status-success {
+    color: #48bb78;
+}
+
+.status-warning {
+    color: #ed8936;
+}
+
+.status-error {
+    color: #f56565;
+}
+
+.status-info {
+    color: #4299e1;
+}
+
+/* Code-like text */
+.code {
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+    background: var(--vscode-textCodeBlock-background);
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+/* Section transitions */
+.section-content {
+    transition: max-height 0.3s ease-out;
+    overflow: hidden;
+}
+
+.section.collapsed .section-content {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}

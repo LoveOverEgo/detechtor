@@ -1,0 +1,92 @@
+{
+  "name": "detechtor",
+  "displayName": "Detechtor - Project Analyzer",
+  "description": "Analyze project structure, frameworks, dependencies and generate README",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "projectAnalyzer.analyze",
+        "title": "Analyze Project",
+        "category": "Detechtor"
+      },
+      {
+        "command": "projectAnalyzer.generateReadme",
+        "title": "Generate README",
+        "category": "Detechtor"
+      },
+      {
+        "command": "projectAnalyzer.quickAnalyze",
+        "title": "Quick Analyze",
+        "category": "Detechtor"
+      },
+      {
+        "command": "projectAnalyzer.refresh",
+        "title": "Refresh Analysis",
+        "category": "Detechtor"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "projectAnalyzer.analyze",
+          "when": "workspaceFolderCount >= 1"
+        },
+        {
+          "command": "projectAnalyzer.generateReadme",
+          "when": "workspaceFolderCount >= 1"
+        },
+        {
+          "command": "projectAnalyzer.quickAnalyze",
+          "when": "workspaceFolderCount >= 1"
+        },
+        {
+          "command": "projectAnalyzer.refresh",
+          "when": "workspaceFolderCount >= 1"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "detechtor",
+          "title": "Detechtor",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "detechtor": [
+        {
+          "id": "projectOverviewView",
+          "name": "Project Overview",
+          "type": "webview",
+          "icon": "media/icon.svg"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.2",
+    "typescript": "^5.3.3",
+    "@types/glob": "^8.1.0",
+    "@types/vscode": "^1.85.0"
+  },
+  "dependencies": {
+    "glob": "^13.0.0"
+  }
+}

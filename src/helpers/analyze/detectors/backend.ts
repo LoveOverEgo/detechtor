@@ -3,42 +3,187 @@ import * as path from 'path';
 import { glob } from 'glob';
 import { BackendAnalysis } from '../../../types/index';
 
+function createBackendAnalysisBase(): BackendAnalysis {
+    return {
+        framework: { name: 'Unknown' },
+        database: [],
+        authentication: [],
+        caching: [],
+        messaging: [],
+        search: [],
+        monitoring: [],
+        features: {
+            hasGraphQL: false,
+            hasREST: false,
+            hasWebSockets: false,
+            hasMicroservices: false,
+            hasQueue: false,
+            hasCronJobs: false,
+            hasFileUpload: false,
+            hasValidation: false,
+            hasTesting: false,
+            hasDocumentation: false,
+        },
+        deployment: {
+            hasDocker: false,
+            hasKubernetes: false,
+            hasCI: false,
+        },
+        configFiles: [],
+        entryPoints: [],
+        apiRoutes: [],
+        models: [],
+        frameworks: [],
+        runtimes: [],
+        servers: [],
+    };
+}
+
+function mergeBackendAnalysis(target: BackendAnalysis, source: Partial<BackendAnalysis>): void {
+    if (source.framework && source.framework.name && source.framework.name !== 'Unknown') {
+        target.framework = source.framework;
+        if (!target.frameworks?.some(fw => fw.name === source.framework!.name)) {
+            target.frameworks = target.frameworks ?? [];
+            target.frameworks.push(source.framework);
+        }
+        if (source.framework.server && !target.server) {
+            target.server = source.framework.server;
+        }
+    }
+
+    if (source.frameworks?.length) {
+        target.frameworks = target.frameworks ?? [];
+        source.frameworks.forEach(framework => {
+            if (!framework?.name || framework.name === 'Unknown') {
+                return;
+            }
+            if (!target.frameworks!.some(existing => existing.name === framework.name)) {
+                target.frameworks!.push(framework);
+            }
+        });
+    }
+
+    if (source.runtime) {
+        target.runtime = source.runtime;
+        target.runtimes = target.runtimes ?? [];
+        if (!target.runtimes.includes(source.runtime)) {
+            target.runtimes.push(source.runtime);
+        }
+    }
+
+    if (source.runtimes?.length) {
+        target.runtimes = target.runtimes ?? [];
+        source.runtimes.forEach(runtime => {
+            if (!target.runtimes!.includes(runtime)) {
+                target.runtimes!.push(runtime);
+            }
+        });
+    }
+
+    if (source.server) {
+        target.server = source.server;
+        target.servers = target.servers ?? [];
+        if (!target.servers.includes(source.server)) {
+            target.servers.push(source.server);
+        }
+    }
+
+    if (source.servers?.length) {
+        target.servers = target.servers ?? [];
+        source.servers.forEach(server => {
+            if (!target.servers!.includes(server)) {
+                target.servers!.push(server);
+            }
+        });
+    }
+
+    mergeList(target.database, source.database);
+    mergeList(target.authentication, source.authentication);
+    mergeList(target.caching, source.caching);
+    mergeList(target.messaging, source.messaging);
+    mergeList(target.search, source.search);
+    mergeList(target.monitoring, source.monitoring);
+    mergeList(target.configFiles, source.configFiles);
+    mergeList(target.entryPoints, source.entryPoints);
+    mergeList(target.apiRoutes, source.apiRoutes);
+    mergeList(target.models, source.models);
+
+    if (source.features) {
+        target.features.hasGraphQL ||= source.features.hasGraphQL;
+        target.features.hasREST ||= source.features.hasREST;
+        target.features.hasWebSockets ||= source.features.hasWebSockets;
+        target.features.hasMicroservices ||= source.features.hasMicroservices;
+        target.features.hasQueue ||= source.features.hasQueue;
+        target.features.hasCronJobs ||= source.features.hasCronJobs;
+        target.features.hasFileUpload ||= source.features.hasFileUpload;
+        target.features.hasValidation ||= source.features.hasValidation;
+        target.features.hasTesting ||= source.features.hasTesting;
+        target.features.hasDocumentation ||= source.features.hasDocumentation;
+    }
+
+    if (source.deployment) {
+        target.deployment.hasDocker ||= source.deployment.hasDocker;
+        target.deployment.hasKubernetes ||= source.deployment.hasKubernetes;
+        target.deployment.hasCI ||= source.deployment.hasCI;
+        if (!target.deployment.cloudProvider && source.deployment.cloudProvider) {
+            target.deployment.cloudProvider = source.deployment.cloudProvider;
+        }
+    }
+
+    if (source.orm) {
+        target.orm = source.orm;
+    }
+}
+
+function mergeList(target: string[] | undefined, source: string[] | undefined): void {
+    if (!source || source.length === 0) {
+        return;
+    }
+    if (!target) {
+        return;
+    }
+    source.forEach(item => {
+        if (!target.includes(item)) {
+            target.push(item);
+        }
+    });
+}
+
 export async function detectBackend(projectPath: string): Promise<BackendAnalysis> {
-    const analysis = {} as BackendAnalysis;
+    const analysis = createBackendAnalysisBase();
 
     try {
         // Phase 1: Detect runtime and framework
         const runtimeDetection = await detectRuntimeAndFramework(projectPath);
-        Object.assign(analysis, runtimeDetection);
+        mergeBackendAnalysis(analysis, runtimeDetection);
 
         // Phase 2: Analyze package/dependency files
-        const dependencyAnalysis = await analyzeDependencies(projectPath, analysis.framework);
-        Object.assign(analysis, dependencyAnalysis);
+        const dependencyAnalysis = await analyzeDependencies(projectPath, analysis.runtime, analysis.framework?.name);
+        mergeBackendAnalysis(analysis, dependencyAnalysis);
 
         // Phase 3: Detect databases and ORMs
         const databaseAnalysis = await detectDatabasesAndORMs(projectPath);
-        analysis.database = databaseAnalysis.databases;
-        analysis.orm = databaseAnalysis.orm;
+        mergeBackendAnalysis(analysis, databaseAnalysis);
 
         // Phase 4: Analyze project structure
-        const structureAnalysis = await analyzeBackendStructure(projectPath, analysis.framework);
-        Object.assign(analysis, structureAnalysis);
+        const structureAnalysis = await analyzeBackendStructure(projectPath);
+        mergeBackendAnalysis(analysis, structureAnalysis);
 
         // Phase 5: Detect additional services
         const servicesAnalysis = await detectAdditionalServices(projectPath);
-        Object.assign(analysis, servicesAnalysis);
+        mergeBackendAnalysis(analysis, servicesAnalysis);
 
         // Phase 6: Detect deployment configuration
         const deploymentAnalysis = await detectDeploymentConfig(projectPath);
-        Object.assign(analysis.deployment, deploymentAnalysis);
+        mergeBackendAnalysis(analysis, { deployment: deploymentAnalysis });
 
         // Phase 7: Verify by file patterns
-        const verification = await verifyBackendByFiles(projectPath, analysis.framework);
-        Object.assign(analysis.features, verification.features);
+        const verification = await verifyBackendByFiles(projectPath);
+        mergeBackendAnalysis(analysis, verification);
 
         // Phase 8: Detect API patterns
         const apiAnalysis = await detectAPIPatterns(projectPath);
-        Object.assign(analysis.features, apiAnalysis);
+        mergeBackendAnalysis(analysis, { features: apiAnalysis });
 
         return analysis;
     } catch (error) {
@@ -88,66 +233,69 @@ async function detectRuntimeAndFramework(projectPath: string): Promise<Partial<B
     // Detect framework based on runtime and files
     if (result.runtime) {
         const frameworkDetection = await detectFrameworkByRuntime(projectPath, result.runtime);
-        Object.assign(result, frameworkDetection);
+        if (frameworkDetection) {
+            result.framework = frameworkDetection;
+            result.frameworks = [frameworkDetection];
+        }
     }
 
     return result;
 }
 
-async function detectFrameworkByRuntime(projectPath: string, runtime: string): Promise<Partial<BackendAnalysis>> {
-    const result: Partial<BackendAnalysis> = {};
+async function detectFrameworkByRuntime(projectPath: string, runtime: string): Promise<BackendAnalysis['framework'] | undefined> {
+    let result: BackendAnalysis['framework'] | undefined;
 
     switch (runtime) {
         case 'Node.js':
             const nodeFramework = await detectNodeFramework(projectPath);
-            Object.assign(result, nodeFramework);
+            result = nodeFramework;
             break;
 
         case 'Python':
             const pythonFramework = await detectPythonFramework(projectPath);
-            Object.assign(result, pythonFramework);
+            result = pythonFramework;
             break;
 
         case 'Java':
             const javaFramework = await detectJavaFramework(projectPath);
-            Object.assign(result, javaFramework);
+            result = javaFramework;
             break;
 
         case 'Go':
             const goFramework = await detectGoFramework(projectPath);
-            Object.assign(result, goFramework);
+            result = goFramework;
             break;
 
         case 'Rust':
             const rustFramework = await detectRustFramework(projectPath);
-            Object.assign(result, rustFramework);
+            result = rustFramework;
             break;
 
         case 'PHP':
             const phpFramework = await detectPHPFramework(projectPath);
-            Object.assign(result, phpFramework);
+            result = phpFramework;
             break;
 
         case 'Ruby':
             const rubyFramework = await detectRubyFramework(projectPath);
-            Object.assign(result, rubyFramework);
+            result = rubyFramework;
             break;
 
         case '.NET':
             const dotnetFramework = await detectDotNetFramework(projectPath);
-            Object.assign(result, dotnetFramework);
+            result = dotnetFramework;
             break;
     }
 
     return result;
 }
 
-async function detectNodeFramework(projectPath: string): Promise<Partial<BackendAnalysis>> {
-    const result: Partial<BackendAnalysis> = {};
-    
+async function detectNodeFramework(projectPath: string): Promise<BackendAnalysis['framework'] | undefined> {
+    const result: BackendAnalysis['framework'] = { name: 'Unknown' };
+
     try {
         const packageJson = await readPackageJson(projectPath);
-        if (!packageJson) return result;
+        if (!packageJson) return undefined;
 
         const deps = {
             ...packageJson.dependencies,
@@ -156,54 +304,54 @@ async function detectNodeFramework(projectPath: string): Promise<Partial<Backend
 
         // Express.js
         if (deps['express']) {
-            result.framework = 'Express.js';
+            result.name = 'Express.js';
             result.version = deps['express'];
             result.server = 'Express';
         }
         // Koa
         else if (deps['koa']) {
-            result.framework = 'Koa';
+            result.name = 'Koa';
             result.version = deps['koa'];
             result.server = 'Koa';
         }
         // Fastify
         else if (deps['fastify']) {
-            result.framework = 'Fastify';
+            result.name = 'Fastify';
             result.version = deps['fastify'];
             result.server = 'Fastify';
         }
         // NestJS
         else if (deps['@nestjs/core']) {
-            result.framework = 'NestJS';
+            result.name = 'NestJS';
             result.version = deps['@nestjs/core'];
             result.server = 'Express/Fastify';
         }
         // Hapi
         else if (deps['@hapi/hapi']) {
-            result.framework = 'Hapi';
+            result.name = 'Hapi';
             result.version = deps['@hapi/hapi'];
             result.server = 'Hapi';
         }
         // Sails.js
         else if (deps['sails']) {
-            result.framework = 'Sails.js';
+            result.name = 'Sails.js';
             result.version = deps['sails'];
             result.server = 'Express';
         }
         // Meteor
         else if (deps['meteor']) {
-            result.framework = 'Meteor';
+            result.name = 'Meteor';
             result.version = deps['meteor'];
         }
         // AdonisJS
         else if (deps['@adonisjs/core']) {
-            result.framework = 'AdonisJS';
+            result.name = 'AdonisJS';
             result.version = deps['@adonisjs/core'];
             result.server = 'Adonis';
         }
         // LoopBack
         else if (deps['@loopback/core']) {
-            result.framework = 'LoopBack';
+            result.name = 'LoopBack';
             result.version = deps['@loopback/core'];
             result.server = 'Express';
         }
@@ -214,19 +362,19 @@ async function detectNodeFramework(projectPath: string): Promise<Partial<Backend
         }
 
         // Check for TypeScript backend
-        if (deps['typescript']) {
-            result.framework = result.framework ? `${result.framework} (TypeScript)` : 'TypeScript';
+        if (deps['typescript'] && result.name !== 'Unknown') {
+            result.name = `${result.name} (TypeScript)`;
         }
 
     } catch (error) {
         console.error('Error detecting Node.js framework:', error);
     }
 
-    return result;
+    return result.name === 'Unknown' ? undefined : result;
 }
 
-async function detectPythonFramework(projectPath: string): Promise<Partial<BackendAnalysis>> {
-    const result: Partial<BackendAnalysis> = {};
+async function detectPythonFramework(projectPath: string): Promise<BackendAnalysis['framework'] | undefined> {
+    const result: BackendAnalysis['framework'] = { name: 'Unknown' };
     
     try {
         // Check requirements.txt
@@ -237,7 +385,7 @@ async function detectPythonFramework(projectPath: string): Promise<Partial<Backe
             
             // Django
             if (lines.some(line => line.startsWith('django') || line.includes('django=='))) {
-                result.framework = 'Django';
+                result.name = 'Django';
                 const djangoLine = lines.find(line => line.startsWith('django'));
                 if (djangoLine) {
                     const versionMatch = djangoLine.match(/django[=<>]=?([\d.]+)/);
@@ -247,7 +395,7 @@ async function detectPythonFramework(projectPath: string): Promise<Partial<Backe
             }
             // Flask
             else if (lines.some(line => line.startsWith('flask') || line.includes('flask=='))) {
-                result.framework = 'Flask';
+                result.name = 'Flask';
                 const flaskLine = lines.find(line => line.startsWith('flask'));
                 if (flaskLine) {
                     const versionMatch = flaskLine.match(/flask[=<>]=?([\d.]+)/);
@@ -257,7 +405,7 @@ async function detectPythonFramework(projectPath: string): Promise<Partial<Backe
             }
             // FastAPI
             else if (lines.some(line => line.startsWith('fastapi') || line.includes('fastapi=='))) {
-                result.framework = 'FastAPI';
+                result.name = 'FastAPI';
                 const fastapiLine = lines.find(line => line.startsWith('fastapi'));
                 if (fastapiLine) {
                     const versionMatch = fastapiLine.match(/fastapi[=<>]=?([\d.]+)/);
@@ -267,12 +415,12 @@ async function detectPythonFramework(projectPath: string): Promise<Partial<Backe
             }
             // Pyramid
             else if (lines.some(line => line.startsWith('pyramid') || line.includes('pyramid=='))) {
-                result.framework = 'Pyramid';
+                result.name = 'Pyramid';
                 result.server = 'Pyramid';
             }
             // Tornado
             else if (lines.some(line => line.startsWith('tornado') || line.includes('tornado=='))) {
-                result.framework = 'Tornado';
+                result.name = 'Tornado';
                 result.server = 'Tornado';
             }
         } catch {
@@ -295,19 +443,19 @@ async function detectPythonFramework(projectPath: string): Promise<Partial<Backe
 
         // Check for Django-specific files
         const djangoFiles = await glob('**/manage.py', { cwd: projectPath, nodir: true });
-        if (djangoFiles.length > 0 && !result.framework) {
-            result.framework = 'Django';
+        if (djangoFiles.length > 0 && result.name === 'Unknown') {
+            result.name = 'Django';
             result.server = 'Django';
         }
 
         // Check for Flask-specific files
         const flaskFiles = await glob('**/app.py', { cwd: projectPath, nodir: true });
-        if (flaskFiles.length > 0 && !result.framework) {
+        if (flaskFiles.length > 0 && result.name === 'Unknown') {
             // Check if it's actually a Flask app
             try {
                 const appContent = await fs.readFile(path.join(projectPath, flaskFiles[0]), 'utf8');
                 if (appContent.includes('Flask') || appContent.includes('from flask import')) {
-                    result.framework = 'Flask';
+                    result.name = 'Flask';
                     result.server = 'Werkzeug';
                 }
             } catch {
@@ -319,11 +467,11 @@ async function detectPythonFramework(projectPath: string): Promise<Partial<Backe
         console.error('Error detecting Python framework:', error);
     }
 
-    return result;
+    return result.name === 'Unknown' ? undefined : result;
 }
 
-async function detectJavaFramework(projectPath: string): Promise<Partial<BackendAnalysis>> {
-    const result: Partial<BackendAnalysis> = {};
+async function detectJavaFramework(projectPath: string): Promise<BackendAnalysis['framework'] | undefined> {
+    const result: BackendAnalysis['framework'] = { name: 'Unknown' };
     
     try {
         // Check for Maven pom.xml
@@ -334,7 +482,7 @@ async function detectJavaFramework(projectPath: string): Promise<Partial<Backend
             // Spring Boot
             if (content.includes('spring-boot-starter-web') || 
                 content.includes('org.springframework.boot')) {
-                result.framework = 'Spring Boot';
+                result.name = 'Spring Boot';
                 result.server = 'Tomcat/Netty';
                 
                 // Try to extract version
@@ -345,27 +493,27 @@ async function detectJavaFramework(projectPath: string): Promise<Partial<Backend
             }
             // Jakarta EE / Java EE
             else if (content.includes('jakarta') || content.includes('javax')) {
-                result.framework = 'Jakarta EE';
+                result.name = 'Jakarta EE';
                 result.server = 'Jakarta EE Server';
             }
             // Micronaut
             else if (content.includes('micronaut')) {
-                result.framework = 'Micronaut';
+                result.name = 'Micronaut';
                 result.server = 'Netty';
             }
             // Quarkus
             else if (content.includes('quarkus')) {
-                result.framework = 'Quarkus';
+                result.name = 'Quarkus';
                 result.server = 'Netty/Vert.x';
             }
             // Play Framework
             else if (content.includes('play-framework')) {
-                result.framework = 'Play Framework';
+                result.name = 'Play Framework';
                 result.server = 'Netty';
             }
             // Vert.x
             else if (content.includes('vertx')) {
-                result.framework = 'Vert.x';
+                result.name = 'Vert.x';
                 result.server = 'Vert.x';
             }
         } catch {
@@ -377,8 +525,8 @@ async function detectJavaFramework(projectPath: string): Promise<Partial<Backend
         try {
             const content = await fs.readFile(gradlePath, 'utf8');
             
-            if (content.includes('spring-boot') && !result.framework) {
-                result.framework = 'Spring Boot';
+            if (content.includes('spring-boot') && result.name === 'Unknown') {
+                result.name = 'Spring Boot';
                 result.server = 'Tomcat/Netty';
             }
         } catch {
@@ -389,11 +537,11 @@ async function detectJavaFramework(projectPath: string): Promise<Partial<Backend
         console.error('Error detecting Java framework:', error);
     }
 
-    return result;
+    return result.name === 'Unknown' ? undefined : result;
 }
 
-async function detectGoFramework(projectPath: string): Promise<Partial<BackendAnalysis>> {
-    const result: Partial<BackendAnalysis> = {};
+async function detectGoFramework(projectPath: string): Promise<BackendAnalysis['framework'] | undefined> {
+    const result: BackendAnalysis['framework'] = { name: 'Unknown' };
     
     try {
         // Check go.mod for dependencies
@@ -403,37 +551,37 @@ async function detectGoFramework(projectPath: string): Promise<Partial<BackendAn
             
             // Gin
             if (content.includes('github.com/gin-gonic/gin')) {
-                result.framework = 'Gin';
+                result.name = 'Gin';
                 result.server = 'Gin';
             }
             // Echo
             else if (content.includes('github.com/labstack/echo')) {
-                result.framework = 'Echo';
+                result.name = 'Echo';
                 result.server = 'Echo';
             }
             // Gorilla Mux
             else if (content.includes('github.com/gorilla/mux')) {
-                result.framework = 'Gorilla Mux';
+                result.name = 'Gorilla Mux';
                 result.server = 'net/http';
             }
             // Fiber
             else if (content.includes('github.com/gofiber/fiber')) {
-                result.framework = 'Fiber';
+                result.name = 'Fiber';
                 result.server = 'Fiber';
             }
             // Beego
             else if (content.includes('github.com/astaxie/beego')) {
-                result.framework = 'Beego';
+                result.name = 'Beego';
                 result.server = 'Beego';
             }
             // Revel
             else if (content.includes('github.com/revel/revel')) {
-                result.framework = 'Revel';
+                result.name = 'Revel';
                 result.server = 'Revel';
             }
             // Standard library
-            else if (content.includes('net/http') && !result.framework) {
-                result.framework = 'net/http';
+            else if (content.includes('net/http') && result.name === 'Unknown') {
+                result.name = 'net/http';
                 result.server = 'net/http';
             }
         } catch {
@@ -442,14 +590,14 @@ async function detectGoFramework(projectPath: string): Promise<Partial<BackendAn
 
         // Check main.go for imports
         const mainFiles = await glob('**/main.go', { cwd: projectPath, nodir: true });
-        if (mainFiles.length > 0 && !result.framework) {
+        if (mainFiles.length > 0 && result.name === 'Unknown') {
             try {
                 const mainContent = await fs.readFile(path.join(projectPath, mainFiles[0]), 'utf8');
                 if (mainContent.includes('gin')) {
-                    result.framework = 'Gin';
+                    result.name = 'Gin';
                     result.server = 'Gin';
                 } else if (mainContent.includes('echo')) {
-                    result.framework = 'Echo';
+                    result.name = 'Echo';
                     result.server = 'Echo';
                 }
             } catch {
@@ -461,11 +609,11 @@ async function detectGoFramework(projectPath: string): Promise<Partial<BackendAn
         console.error('Error detecting Go framework:', error);
     }
 
-    return result;
+    return result.name === 'Unknown' ? undefined : result;
 }
 
-async function detectRustFramework(projectPath: string): Promise<Partial<BackendAnalysis>> {
-    const result: Partial<BackendAnalysis> = {};
+async function detectRustFramework(projectPath: string): Promise<BackendAnalysis['framework'] | undefined> {
+    const result: BackendAnalysis['framework'] = { name: 'Unknown' };
     
     try {
         // Check Cargo.toml for dependencies
@@ -475,27 +623,27 @@ async function detectRustFramework(projectPath: string): Promise<Partial<Backend
             
             // Actix-web
             if (content.includes('actix-web')) {
-                result.framework = 'Actix-web';
+                result.name = 'Actix-web';
                 result.server = 'Actix';
             }
             // Rocket
             else if (content.includes('rocket')) {
-                result.framework = 'Rocket';
+                result.name = 'Rocket';
                 result.server = 'Rocket';
             }
             // Warp
             else if (content.includes('warp')) {
-                result.framework = 'Warp';
+                result.name = 'Warp';
                 result.server = 'Warp';
             }
             // Axum
             else if (content.includes('axum')) {
-                result.framework = 'Axum';
+                result.name = 'Axum';
                 result.server = 'Tower';
             }
             // Tide
             else if (content.includes('tide')) {
-                result.framework = 'Tide';
+                result.name = 'Tide';
                 result.server = 'Tide';
             }
         } catch {
@@ -506,11 +654,11 @@ async function detectRustFramework(projectPath: string): Promise<Partial<Backend
         console.error('Error detecting Rust framework:', error);
     }
 
-    return result;
+    return result.name === 'Unknown' ? undefined : result;
 }
 
-async function detectPHPFramework(projectPath: string): Promise<Partial<BackendAnalysis>> {
-    const result: Partial<BackendAnalysis> = {};
+async function detectPHPFramework(projectPath: string): Promise<BackendAnalysis['framework'] | undefined> {
+    const result: BackendAnalysis['framework'] = { name: 'Unknown' };
     
     try {
         // Check composer.json
@@ -525,38 +673,38 @@ async function detectPHPFramework(projectPath: string): Promise<Partial<BackendA
 
             // Laravel
             if (deps['laravel/framework']) {
-                result.framework = 'Laravel';
+                result.name = 'Laravel';
                 result.version = deps['laravel/framework'];
                 result.server = 'Apache/Nginx';
             }
             // Symfony
             else if (deps['symfony/symfony'] || deps['symfony/framework-bundle']) {
-                result.framework = 'Symfony';
+                result.name = 'Symfony';
                 result.server = 'Apache/Nginx';
             }
             // CodeIgniter
             else if (deps['codeigniter/framework']) {
-                result.framework = 'CodeIgniter';
+                result.name = 'CodeIgniter';
                 result.server = 'Apache/Nginx';
             }
             // Slim
             else if (deps['slim/slim']) {
-                result.framework = 'Slim';
+                result.name = 'Slim';
                 result.server = 'Apache/Nginx';
             }
             // Laminas (formerly Zend)
             else if (deps['laminas/laminas-mvc']) {
-                result.framework = 'Laminas';
+                result.name = 'Laminas';
                 result.server = 'Apache/Nginx';
             }
             // Yii
             else if (deps['yiisoft/yii2']) {
-                result.framework = 'Yii';
+                result.name = 'Yii';
                 result.server = 'Apache/Nginx';
             }
             // CakePHP
             else if (deps['cakephp/cakephp']) {
-                result.framework = 'CakePHP';
+                result.name = 'CakePHP';
                 result.server = 'Apache/Nginx';
             }
         } catch {
@@ -565,14 +713,14 @@ async function detectPHPFramework(projectPath: string): Promise<Partial<BackendA
 
         // Check for framework-specific files
         const laravelFiles = await glob('**/artisan', { cwd: projectPath, nodir: true });
-        if (laravelFiles.length > 0 && !result.framework) {
-            result.framework = 'Laravel';
+        if (laravelFiles.length > 0 && result.name === 'Unknown') {
+            result.name = 'Laravel';
             result.server = 'Apache/Nginx';
         }
 
         const symfonyFiles = await glob('**/bin/console', { cwd: projectPath, nodir: true });
-        if (symfonyFiles.length > 0 && !result.framework) {
-            result.framework = 'Symfony';
+        if (symfonyFiles.length > 0 && result.name === 'Unknown') {
+            result.name = 'Symfony';
             result.server = 'Apache/Nginx';
         }
 
@@ -580,11 +728,11 @@ async function detectPHPFramework(projectPath: string): Promise<Partial<BackendA
         console.error('Error detecting PHP framework:', error);
     }
 
-    return result;
+    return result.name === 'Unknown' ? undefined : result;
 }
 
-async function detectRubyFramework(projectPath: string): Promise<Partial<BackendAnalysis>> {
-    const result: Partial<BackendAnalysis> = {};
+async function detectRubyFramework(projectPath: string): Promise<BackendAnalysis['framework'] | undefined> {
+    const result: BackendAnalysis['framework'] = { name: 'Unknown' };
     
     try {
         // Check Gemfile
@@ -594,22 +742,22 @@ async function detectRubyFramework(projectPath: string): Promise<Partial<Backend
             
             // Ruby on Rails
             if (content.includes('rails')) {
-                result.framework = 'Ruby on Rails';
+                result.name = 'Ruby on Rails';
                 result.server = 'Puma/Passenger';
             }
             // Sinatra
             else if (content.includes('sinatra')) {
-                result.framework = 'Sinatra';
+                result.name = 'Sinatra';
                 result.server = 'WEBrick/Puma';
             }
             // Hanami
             else if (content.includes('hanami')) {
-                result.framework = 'Hanami';
+                result.name = 'Hanami';
                 result.server = 'Puma';
             }
             // Padrino
             else if (content.includes('padrino')) {
-                result.framework = 'Padrino';
+                result.name = 'Padrino';
                 result.server = 'Puma';
             }
         } catch {
@@ -618,8 +766,8 @@ async function detectRubyFramework(projectPath: string): Promise<Partial<Backend
 
         // Check for Rails-specific files
         const railsFiles = await glob('**/bin/rails', { cwd: projectPath, nodir: true });
-        if (railsFiles.length > 0 && !result.framework) {
-            result.framework = 'Ruby on Rails';
+        if (railsFiles.length > 0 && result.name === 'Unknown') {
+            result.name = 'Ruby on Rails';
             result.server = 'Puma/Passenger';
         }
 
@@ -627,17 +775,17 @@ async function detectRubyFramework(projectPath: string): Promise<Partial<Backend
         console.error('Error detecting Ruby framework:', error);
     }
 
-    return result;
+    return result.name === 'Unknown' ? undefined : result;
 }
 
-async function detectDotNetFramework(projectPath: string): Promise<Partial<BackendAnalysis>> {
-    const result: Partial<BackendAnalysis> = {};
+async function detectDotNetFramework(projectPath: string): Promise<BackendAnalysis['framework'] | undefined> {
+    const result: BackendAnalysis['framework'] = { name: 'Unknown' };
     
     try {
         // Check for .csproj files
         const csprojFiles = await glob('**/*.csproj', { cwd: projectPath, nodir: true });
         if (csprojFiles.length > 0) {
-            result.framework = 'ASP.NET Core';
+            result.name = 'ASP.NET Core';
             result.server = 'Kestrel';
             
             // Check which version of .NET
@@ -661,8 +809,8 @@ async function detectDotNetFramework(projectPath: string): Promise<Partial<Backe
 
         // Check for older .NET Framework
         const webConfigFiles = await glob('**/Web.config', { cwd: projectPath, nodir: true });
-        if (webConfigFiles.length > 0 && !result.framework) {
-            result.framework = 'ASP.NET';
+        if (webConfigFiles.length > 0 && result.name === 'Unknown') {
+            result.name = 'ASP.NET';
             result.server = 'IIS';
         }
 
@@ -670,26 +818,42 @@ async function detectDotNetFramework(projectPath: string): Promise<Partial<Backe
         console.error('Error detecting .NET framework:', error);
     }
 
-    return result;
+    return result.name === 'Unknown' ? undefined : result;
 }
 
-async function analyzeDependencies(projectPath: string, framework: string): Promise<Partial<BackendAnalysis>> {
+async function analyzeDependencies(
+    projectPath: string,
+    runtime?: string,
+    frameworkName?: string
+): Promise<Partial<BackendAnalysis>> {
     const result: Partial<BackendAnalysis> = {
         authentication: [],
         caching: [],
         messaging: [],
         search: [],
         monitoring: [],
-        features: {} as any,
+        features: {
+            hasGraphQL: false,
+            hasREST: false,
+            hasWebSockets: false,
+            hasMicroservices: false,
+            hasQueue: false,
+            hasCronJobs: false,
+            hasFileUpload: false,
+            hasValidation: false,
+            hasTesting: false,
+            hasDocumentation: false,
+        },
     };
 
     try {
-        // Read package.json or equivalent based on runtime
         let deps: Record<string, string> = {};
 
-        if (framework.includes('Node.js') || framework.includes('Express') || 
-            framework.includes('NestJS') || framework.includes('Koa') || 
-            framework.includes('Fastify')) {
+        const frameworkLabel = frameworkName ?? '';
+        const isNodeRuntime = runtime === 'Node.js';
+        const isNodeFramework = ['Express', 'NestJS', 'Koa', 'Fastify'].some(name => frameworkLabel.includes(name));
+
+        if (isNodeRuntime || isNodeFramework) {
             const packageJson = await readPackageJson(projectPath);
             if (packageJson) {
                 deps = {
@@ -699,7 +863,6 @@ async function analyzeDependencies(projectPath: string, framework: string): Prom
             }
         }
 
-        // Authentication libraries
         if (deps['passport'] || deps['jsonwebtoken'] || deps['bcrypt']) {
             result.authentication!.push('JWT/Passport');
         }
@@ -713,7 +876,6 @@ async function analyzeDependencies(projectPath: string, framework: string): Prom
             result.authentication!.push('Azure AD');
         }
 
-        // Caching
         if (deps['redis'] || deps['ioredis']) {
             result.caching!.push('Redis');
         }
@@ -724,7 +886,6 @@ async function analyzeDependencies(projectPath: string, framework: string): Prom
             result.caching!.push('In-memory');
         }
 
-        // Messaging/Queue
         if (deps['bull'] || deps['bullmq']) {
             result.messaging!.push('Bull (Redis)');
         }
@@ -738,7 +899,6 @@ async function analyzeDependencies(projectPath: string, framework: string): Prom
             result.messaging!.push('AWS SQS');
         }
 
-        // Search
         if (deps['@elastic/elasticsearch']) {
             result.search!.push('Elasticsearch');
         }
@@ -746,7 +906,6 @@ async function analyzeDependencies(projectPath: string, framework: string): Prom
             result.search!.push('Algolia');
         }
 
-        // Monitoring
         if (deps['winston'] || deps['pino']) {
             result.monitoring!.push('Structured Logging');
         }
@@ -760,17 +919,14 @@ async function analyzeDependencies(projectPath: string, framework: string): Prom
             result.monitoring!.push('Sentry');
         }
 
-        // GraphQL
         if (deps['graphql'] || deps['apollo-server']) {
             result.features!.hasGraphQL = true;
         }
 
-        // WebSockets
         if (deps['socket.io'] || deps['ws']) {
             result.features!.hasWebSockets = true;
         }
 
-        // Testing
         if (deps['jest'] || deps['mocha'] || deps['chai'] || deps['supertest']) {
             result.features!.hasTesting = true;
         }
@@ -782,8 +938,9 @@ async function analyzeDependencies(projectPath: string, framework: string): Prom
     return result;
 }
 
-async function detectDatabasesAndORMs(projectPath: string): Promise<{ databases: string[]; orm?: string }> {
-    const result = { databases: [] as string[], orm: undefined as string | undefined };
+async function detectDatabasesAndORMs(projectPath: string): Promise<Partial<BackendAnalysis>> {
+    const databases: string[] = [];
+    let orm: string | undefined;
 
     try {
         // Read package.json for Node.js projects
@@ -796,41 +953,41 @@ async function detectDatabasesAndORMs(projectPath: string): Promise<{ databases:
 
             // Databases
             if (deps['mongoose']) {
-                result.databases.push('MongoDB');
-                result.orm = 'Mongoose';
+                databases.push('MongoDB');
+                orm = 'Mongoose';
             }
             if (deps['typeorm']) {
-                result.databases.push('PostgreSQL/MySQL/SQLite');
-                result.orm = 'TypeORM';
+                databases.push('PostgreSQL/MySQL/SQLite');
+                orm = 'TypeORM';
             }
             if (deps['sequelize']) {
-                result.databases.push('PostgreSQL/MySQL/MariaDB/SQLite');
-                result.orm = 'Sequelize';
+                databases.push('PostgreSQL/MySQL/MariaDB/SQLite');
+                orm = 'Sequelize';
             }
             if (deps['prisma']) {
-                result.databases.push('PostgreSQL/MySQL/SQLite/MongoDB');
-                result.orm = 'Prisma';
+                databases.push('PostgreSQL/MySQL/SQLite/MongoDB');
+                orm = 'Prisma';
             }
             if (deps['redis'] || deps['ioredis']) {
-                result.databases.push('Redis');
+                databases.push('Redis');
             }
             if (deps['@elastic/elasticsearch']) {
-                result.databases.push('Elasticsearch');
+                databases.push('Elasticsearch');
             }
             if (deps['mysql2'] || deps['mysql']) {
-                result.databases.push('MySQL');
+                databases.push('MySQL');
             }
             if (deps['pg'] || deps['postgres']) {
-                result.databases.push('PostgreSQL');
+                databases.push('PostgreSQL');
             }
             if (deps['sqlite3']) {
-                result.databases.push('SQLite');
+                databases.push('SQLite');
             }
             if (deps['mongodb']) {
-                result.databases.push('MongoDB');
+                databases.push('MongoDB');
             }
             if (deps['cassandra-driver']) {
-                result.databases.push('Cassandra');
+                databases.push('Cassandra');
             }
         }
 
@@ -839,17 +996,17 @@ async function detectDatabasesAndORMs(projectPath: string): Promise<{ databases:
         try {
             const content = await fs.readFile(requirementsPath, 'utf8');
             if (content.includes('django.db') || content.includes('psycopg2') || content.includes('mysqlclient')) {
-                result.databases.push('PostgreSQL/MySQL');
-                result.orm = 'Django ORM';
+                databases.push('PostgreSQL/MySQL');
+                orm = 'Django ORM';
             }
             if (content.includes('sqlalchemy')) {
-                result.orm = 'SQLAlchemy';
+                orm = 'SQLAlchemy';
             }
             if (content.includes('pymongo')) {
-                result.databases.push('MongoDB');
+                databases.push('MongoDB');
             }
             if (content.includes('redis')) {
-                result.databases.push('Redis');
+                databases.push('Redis');
             }
         } catch {
             // requirements.txt not found
@@ -869,8 +1026,8 @@ async function detectDatabasesAndORMs(projectPath: string): Promise<{ databases:
                 ];
                 
                 for (const pattern of dbPatterns) {
-                    if (pattern.pattern.test(content) && !result.databases.includes(pattern.type)) {
-                        result.databases.push(pattern.type);
+                    if (pattern.pattern.test(content) && !databases.includes(pattern.type)) {
+                        databases.push(pattern.type);
                     }
                 }
             } catch {
@@ -878,17 +1035,17 @@ async function detectDatabasesAndORMs(projectPath: string): Promise<{ databases:
             }
         }
 
-        // Remove duplicates
-        result.databases = [...new Set(result.databases)];
-
     } catch (error) {
         console.error('Error detecting databases:', error);
     }
 
-    return result;
+    return {
+        database: [...new Set(databases)],
+        orm,
+    };
 }
 
-async function analyzeBackendStructure(projectPath: string, framework: string): Promise<Partial<BackendAnalysis>> {
+async function analyzeBackendStructure(projectPath: string): Promise<Partial<BackendAnalysis>> {
     const result: Partial<BackendAnalysis> = {
         entryPoints: [],
         apiRoutes: [],
@@ -1069,7 +1226,7 @@ async function detectDeploymentConfig(projectPath: string): Promise<BackendAnaly
     return deployment;
 }
 
-async function verifyBackendByFiles(projectPath: string, framework: string): Promise<Partial<BackendAnalysis>> {
+async function verifyBackendByFiles(projectPath: string): Promise<Partial<BackendAnalysis>> {
     const result: Partial<BackendAnalysis> = {
         features: {
             hasGraphQL: false,
@@ -1139,8 +1296,8 @@ async function verifyBackendByFiles(projectPath: string, framework: string): Pro
     return result;
 }
 
-async function detectAPIPatterns(projectPath: string): Promise<Partial<BackendAnalysis['features']>> {
-    const features: Partial<BackendAnalysis['features']> = {};
+async function detectAPIPatterns(projectPath: string): Promise<BackendAnalysis['features']> {
+    const features = {} as BackendAnalysis['features'];
 
     try {
         // Sample a few API files to detect patterns

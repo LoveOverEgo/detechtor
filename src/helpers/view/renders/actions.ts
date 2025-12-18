@@ -13,14 +13,14 @@ export function getAnalysisText(analysis: ProjectAnalysis): string {
     lines.push('');
     
     lines.push('=== FRONTEND ===');
-    lines.push(`Framework: ${analysis.frontend.framework}`);
-    if (analysis.frontend.version) lines.push(`Version: ${analysis.frontend.version}`);
+    lines.push(`Framework: ${analysis.frontend.framework?.name ?? 'Unknown'}`);
+    if (analysis.frontend.framework?.version) lines.push(`Version: ${analysis.frontend.framework.version}`);
     if (analysis.frontend.buildTool) lines.push(`Build Tool: ${analysis.frontend.buildTool}`);
     if (analysis.frontend.cssFramework) lines.push(`CSS: ${analysis.frontend.cssFramework}`);
     lines.push('');
     
     lines.push('=== BACKEND ===');
-    lines.push(`Framework: ${analysis.backend.framework}`);
+    lines.push(`Framework: ${analysis.backend.framework?.name ?? 'Unknown'}`);
     if (analysis.backend.runtime) lines.push(`Runtime: ${analysis.backend.runtime}`);
     if (analysis.backend.database && analysis.backend.database.length > 0) lines.push(`Database: ${analysis.backend.database.join(', ')}`);
     if (analysis.backend.orm) lines.push(`ORM: ${analysis.backend.orm}`);

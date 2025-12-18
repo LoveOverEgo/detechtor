@@ -1,4 +1,8 @@
 import { ProjectAnalysis } from '../types';
+
+function getFrameworkName(framework: ProjectAnalysis['frontend']['framework'] | ProjectAnalysis['backend']['framework']): string {
+    return framework?.name ?? 'Unknown';
+}
 import { generateBadges, generateTableOfContents, generateInstallation, generateUsage, generateAPISection, generateContributing, generateLicense, generateContact, generateQuickStart } from './templates';
 
 export interface ReadmeOptions {
@@ -76,7 +80,7 @@ export function buildReadme(analysis: ProjectAnalysis, options: ReadmeOptions = 
     sections.push(''); // Empty line
 
     // API Documentation
-    if (includeAPI && (analysis.backend.framework !== 'Unknown' || analysis.frontend.framework !== 'Unknown')) {
+    if (includeAPI && (getFrameworkName(analysis.backend.framework) !== 'Unknown' || getFrameworkName(analysis.frontend.framework) !== 'Unknown')) {
         const apiSection = generateAPISection(analysis);
         if (apiSection.trim()) {
             sections.push(apiSection);
@@ -167,8 +171,10 @@ function generateDescription(analysis: ProjectAnalysis): string {
     let description = '## 📋 Description\n\n';
     
     const languages = analysis.languages.join(', ');
-    const frontend = analysis.frontend.framework !== 'Unknown' ? analysis.frontend.framework : undefined;
-    const backend = analysis.backend.framework !== 'Unknown' ? analysis.backend.framework : undefined;
+    const frontendName = getFrameworkName(analysis.frontend.framework);
+    const backendName = getFrameworkName(analysis.backend.framework);
+    const frontend = frontendName !== 'Unknown' ? frontendName : undefined;
+    const backend = backendName !== 'Unknown' ? backendName : undefined;
     
     description += 'This project is ';
     
@@ -221,8 +227,11 @@ function generateFeatures(analysis: ProjectAnalysis): string {
     const features: string[] = [];
     
     // Add framework-specific features
-    if (analysis.frontend.framework !== 'Unknown') {
-        features.push(`**${analysis.frontend.framework}** - Modern frontend framework`);
+    const frontendFrameworkName = getFrameworkName(analysis.frontend.framework);
+    const backendFrameworkName = getFrameworkName(analysis.backend.framework);
+
+    if (frontendFrameworkName !== 'Unknown') {
+        features.push(`**${frontendFrameworkName}** - Modern frontend framework`);
         if (analysis.frontend.hasRouter) {
             features.push('**Routing** - Client-side routing enabled');
         }
@@ -234,8 +243,8 @@ function generateFeatures(analysis: ProjectAnalysis): string {
         }
     }
     
-    if (analysis.backend.framework !== 'Unknown') {
-        features.push(`**${analysis.backend.framework}** - Robust backend framework`);
+    if (backendFrameworkName !== 'Unknown') {
+        features.push(`**${backendFrameworkName}** - Robust backend framework`);
         if (analysis.backend.database && analysis.backend.database.length > 0) {
             features.push(`**${analysis.backend.database.join(', ')}** - Database ${analysis.backend.orm ? `with ${analysis.backend.orm}` : ''}`);
         }
@@ -266,10 +275,13 @@ function generateExamples(analysis: ProjectAnalysis): string {
     const examples: string[] = [];
     
     // Frontend examples
-    if (analysis.frontend.framework !== 'Unknown') {
+    const frontendFrameworkName = getFrameworkName(analysis.frontend.framework);
+    const backendFrameworkName = getFrameworkName(analysis.backend.framework);
+
+    if (frontendFrameworkName !== 'Unknown') {
         examples.push('### Frontend Examples');
         
-        switch (analysis.frontend.framework) {
+        switch (frontendFrameworkName) {
             case 'React':
                 examples.push('```jsx');
                 examples.push('// Example React component');
@@ -311,10 +323,10 @@ function generateExamples(analysis: ProjectAnalysis): string {
     }
     
     // Backend examples
-    if (analysis.backend.framework !== 'Unknown') {
+    if (backendFrameworkName !== 'Unknown') {
         examples.push('### Backend Examples');
         
-        switch (analysis.backend.framework) {
+        switch (backendFrameworkName) {
             case 'Express.js':
                 examples.push('```javascript');
                 examples.push('// Example Express.js route');
@@ -434,8 +446,11 @@ function generateTechnologies(analysis: ProjectAnalysis): string {
     let technologies = '## 🛠️ Technologies Used\n\n';
     
     technologies += '### Frontend\n';
-    if (analysis.frontend.framework !== 'Unknown') {
-        technologies += `- **Framework:** ${analysis.frontend.framework} ${analysis.frontend.version ? `(${analysis.frontend.version})` : ''}\n`;
+    const frontendFrameworkName = getFrameworkName(analysis.frontend.framework);
+    const backendFrameworkName = getFrameworkName(analysis.backend.framework);
+
+    if (frontendFrameworkName !== 'Unknown') {
+        technologies += `- **Framework:** ${frontendFrameworkName} ${analysis.frontend.framework.version ? `(${analysis.frontend.framework.version})` : ''}\n`;
         if (analysis.frontend.cssFramework) {
             technologies += `- **Styling:** ${analysis.frontend.cssFramework}\n`;
         }
@@ -450,8 +465,8 @@ function generateTechnologies(analysis: ProjectAnalysis): string {
     }
     
     technologies += '\n### Backend\n';
-    if (analysis.backend.framework !== 'Unknown') {
-        technologies += `- **Framework:** ${analysis.backend.framework} ${analysis.backend.version ? `(${analysis.backend.version})` : ''}\n`;
+    if (backendFrameworkName !== 'Unknown') {
+        technologies += `- **Framework:** ${backendFrameworkName} ${analysis.backend.framework.version ? `(${analysis.backend.framework.version})` : ''}\n`;
         if (analysis.backend.runtime) {
             technologies += `- **Runtime:** ${analysis.backend.runtime}\n`;
         }
@@ -659,10 +674,10 @@ export function estimateReadmeQuality(analysis: ProjectAnalysis): number {
     if (analysis.dependencies.packageManagers.length > 0 || analysis.backend.runtime) score += 10;
     
     // Check for usage examples
-    if (analysis.frontend.framework !== 'Unknown' || analysis.backend.framework !== 'Unknown') score += 10;
+    if (getFrameworkName(analysis.frontend.framework) !== 'Unknown' || getFrameworkName(analysis.backend.framework) !== 'Unknown') score += 10;
     
     // Check for API documentation
-    if (analysis.backend.framework !== 'Unknown') score += 10;
+    if (getFrameworkName(analysis.backend.framework) !== 'Unknown') score += 10;
     
     // Check for testing information
     if (analysis.testing.frameworks && analysis.testing.frameworks.length > 0) score += 10;

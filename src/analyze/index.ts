@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import { Phase, ProjectAnalysis, ProjectInfo, WorkspaceAnalysis, WorkspaceProjectRoot } from '../types/index';
+import { ComponentAnalysis, Phase, ProjectAnalysis, ProjectInfo, TechnologyDescriptor, WorkspaceAnalysis, WorkspaceComponentRef, WorkspaceProjectRoot } from '../types/index';
 import { analyzeDependencies, detectBackend, detectFrontend, detectLanguages, detectTestingTools, pathExists, scanForConfigFiles, analyzeProjectStructure, detectWorkspaceProjects } from '../helpers/analyze/index';
 
 export async function analyzeProject(
@@ -41,6 +41,9 @@ export async function analyzeProject(
             increment += 100 / phases.length;
             await startPhase(analysis, projectPath, phase, progress, increment);
         }
+
+        analysis.rootPath = projectPath;
+        analysis.components = buildComponentsFromAnalysis(analysis);
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         throw new Error(errorMsg);
@@ -59,14 +62,40 @@ export async function analyzeWorkspace(
     const roots = await detectWorkspaceProjects(workspacePath);
     const projects: ProjectAnalysis[] = [];
 
+    const frontendComponents: WorkspaceComponentRef[] = [];
+    const backendComponents: WorkspaceComponentRef[] = [];
+
     for (const root of roots) {
         if (token?.isCancellationRequested) break;
         progress?.report({ message: `Analyzing ${root.name}...` });
 
         const analysis = await analyzeProject(root.rootPath, progress, token);
+        analysis.projectId = root.id;
         analysis.rootPath = root.rootPath;
         analysis.projectTypeHints = deriveProjectTypeHints(analysis, root);
         projects.push(analysis);
+
+        for (const component of analysis.components ?? []) {
+            if (component.kind === 'frontend') {
+                frontendComponents.push({
+                    projectId: root.id,
+                    componentId: component.id,
+                    name: component.name ?? root.name,
+                    rootPath: component.rootPath,
+                    kind: 'frontend',
+                });
+            }
+
+            if (component.kind === 'backend') {
+                backendComponents.push({
+                    projectId: root.id,
+                    componentId: component.id,
+                    name: component.name ?? root.name,
+                    rootPath: component.rootPath,
+                    kind: 'backend',
+                });
+            }
+        }
     }
 
     return {
@@ -74,6 +103,8 @@ export async function analyzeWorkspace(
         projects,
         summary: {
             projectCount: projects.length,
+            frontendComponents,
+            backendComponents,
         },
     };
 }
@@ -213,13 +244,160 @@ async function extractProjectMetadata(projectPath: string) {
 function deriveProjectTypeHints(analysis: ProjectAnalysis, root: WorkspaceProjectRoot): string[] {
     const hints = new Set(root.typeHints);
 
-    if (analysis.frontend?.framework && analysis.frontend.framework !== 'Unknown') {
+    if (analysis.frontend?.framework?.name && analysis.frontend.framework.name !== 'Unknown') {
         hints.add('frontend');
     }
 
-    if (analysis.backend?.framework && analysis.backend.framework !== 'Unknown') {
+    if (analysis.backend?.framework?.name && analysis.backend.framework.name !== 'Unknown') {
         hints.add('backend');
     }
 
     return Array.from(hints);
+}
+
+function buildComponentsFromAnalysis(analysis: ProjectAnalysis): ComponentAnalysis[] {
+    const components: ComponentAnalysis[] = [];
+    const baseId = analysis.projectInfo?.name ? sanitizeId(analysis.projectInfo.name) : 'project';
+    const rootPath = analysis.rootPath ?? '';
+
+    const baseData = {
+        rootPath,
+        languages: analysis.languages ?? [],
+        packageManagers: analysis.dependencies?.packageManagers ?? [],
+        hasLockFile: analysis.dependencies?.hasLockFile ?? false,
+        dependencies: analysis.dependencies,
+        testing: analysis.testing,
+        fileStructure: analysis.fileStructure,
+    };
+
+    if (analysis.frontend?.framework?.name && analysis.frontend.framework.name !== 'Unknown') {
+        components.push({
+            id: `${baseId}-frontend-1`,
+            kind: 'frontend',
+            name: `${analysis.projectInfo?.name ?? 'Project'} Frontend`,
+            technologies: collectFrontendTechnologies(analysis),
+            frontend: analysis.frontend,
+            ...baseData,
+        });
+    }
+
+    if (analysis.backend?.framework?.name && analysis.backend.framework.name !== 'Unknown') {
+        components.push({
+            id: `${baseId}-backend-1`,
+            kind: 'backend',
+            name: `${analysis.projectInfo?.name ?? 'Project'} Backend`,
+            technologies: collectBackendTechnologies(analysis),
+            backend: analysis.backend,
+            ...baseData,
+        });
+    }
+
+    if (components.length === 0) {
+        components.push({
+            id: `${baseId}-unknown-1`,
+            kind: 'unknown',
+            name: analysis.projectInfo?.name ?? 'Project',
+            technologies: [],
+            ...baseData,
+        });
+    }
+
+    return components;
+}
+
+function collectFrontendTechnologies(analysis: ProjectAnalysis): TechnologyDescriptor[] {
+    const technologies: TechnologyDescriptor[] = [];
+    const frontend = analysis.frontend;
+    const seen = new Set<string>();
+
+    if (!frontend) {
+        return technologies;
+    }
+
+    if (frontend.framework?.name && frontend.framework.name !== 'Unknown') {
+        technologies.push({ name: frontend.framework.name, version: frontend.framework.version, kind: 'framework' });
+        seen.add(frontend.framework.name);
+    }
+
+    if (frontend.frameworks?.length) {
+        frontend.frameworks.forEach(framework => {
+            if (!framework?.name || framework.name === 'Unknown' || seen.has(framework.name)) {
+                return;
+            }
+            technologies.push({ name: framework.name, version: framework.version, kind: 'framework' });
+            seen.add(framework.name);
+        });
+    }
+
+    if (frontend.metaFrameworks?.length) {
+        frontend.metaFrameworks.forEach(framework => {
+            technologies.push({ name: framework, kind: 'meta-framework' });
+        });
+    }
+
+    if (frontend.buildTool) {
+        technologies.push({ name: frontend.buildTool, version: frontend.buildToolVersion, kind: 'build-tool' });
+    }
+
+    if (frontend.cssFramework) {
+        technologies.push({ name: frontend.cssFramework, kind: 'css' });
+    }
+
+    if (frontend.uiLibrary) {
+        technologies.push({ name: frontend.uiLibrary, kind: 'ui' });
+    }
+
+    return technologies;
+}
+
+function collectBackendTechnologies(analysis: ProjectAnalysis): TechnologyDescriptor[] {
+    const technologies: TechnologyDescriptor[] = [];
+    const backend = analysis.backend;
+    const seen = new Set<string>();
+
+    if (!backend) {
+        return technologies;
+    }
+
+    if (backend.framework?.name && backend.framework.name !== 'Unknown') {
+        technologies.push({ name: backend.framework.name, version: backend.framework.version, kind: 'framework' });
+        seen.add(backend.framework.name);
+    }
+
+    if (backend.frameworks?.length) {
+        backend.frameworks.forEach(framework => {
+            if (!framework?.name || framework.name === 'Unknown' || seen.has(framework.name)) {
+                return;
+            }
+            technologies.push({ name: framework.name, version: framework.version, kind: 'framework' });
+            seen.add(framework.name);
+        });
+    }
+
+    if (backend.runtime) {
+        technologies.push({ name: backend.runtime, kind: 'runtime' });
+    }
+
+    if (backend.database?.length) {
+        backend.database.forEach(database => {
+            technologies.push({ name: database, kind: 'database' });
+        });
+    }
+
+    if (backend.orm) {
+        technologies.push({ name: backend.orm, kind: 'orm' });
+    }
+
+    if (backend.server) {
+        technologies.push({ name: backend.server, kind: 'service' });
+    }
+
+    return technologies;
+}
+
+function sanitizeId(value: string): string {
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'project';
 }

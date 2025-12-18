@@ -1,5 +1,9 @@
 import { ProjectAnalysis } from "../types";
 
+function getFrameworkName(framework: ProjectAnalysis['frontend']['framework'] | ProjectAnalysis['backend']['framework']): string {
+    return framework?.name ?? 'Unknown';
+}
+
 export function generateBadges(analysis: ProjectAnalysis): string {
     const badges: string[] = [];
     
@@ -29,17 +33,20 @@ export function generateBadges(analysis: ProjectAnalysis): string {
     }
     
     // Framework badges
-    if (analysis.frontend.framework === 'React') {
+    const frontendFramework = getFrameworkName(analysis.frontend.framework);
+    const backendFramework = getFrameworkName(analysis.backend.framework);
+
+    if (frontendFramework === 'React') {
         badges.push('![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)');
-    } else if (analysis.frontend.framework === 'Vue') {
+    } else if (frontendFramework === 'Vue') {
         badges.push('![Vue.js](https://img.shields.io/badge/Vue.js-35495E?style=flat&logo=vuedotjs&logoColor=4FC08D)');
-    } else if (analysis.frontend.framework === 'Angular') {
+    } else if (frontendFramework === 'Angular') {
         badges.push('![Angular](https://img.shields.io/badge/Angular-DD0031?style=flat&logo=angular&logoColor=white)');
     }
     
-    if (analysis.backend.framework === 'Express.js') {
+    if (backendFramework === 'Express.js') {
         badges.push('![Express.js](https://img.shields.io/badge/Express.js-404D59?style=flat)');
-    } else if (analysis.backend.framework === 'Django') {
+    } else if (backendFramework === 'Django') {
         badges.push('![Django](https://img.shields.io/badge/Django-092E20?style=flat&logo=django&logoColor=white)');
     }
     
@@ -71,7 +78,7 @@ export function generateTableOfContents(analysis: ProjectAnalysis, sections: str
         toc.push('- [Quick Start](#-quick-start)');
     }
     
-    if (options.includeAPI && (analysis.backend.framework !== 'Unknown' || analysis.frontend.framework !== 'Unknown')) {
+    if (options.includeAPI && (getFrameworkName(analysis.backend.framework) !== 'Unknown' || getFrameworkName(analysis.frontend.framework) !== 'Unknown')) {
         toc.push('- [API Reference](#-api-reference)');
     }
     
@@ -326,10 +333,11 @@ export function generateUsage(analysis: ProjectAnalysis): string {
 export function generateAPISection(analysis: ProjectAnalysis): string {
     let api = '## 📖 API Reference\n\n';
     
-    if (analysis.backend.framework !== 'Unknown') {
-        api += `### ${analysis.backend.framework} API\n\n`;
+    const backendFramework = getFrameworkName(analysis.backend.framework);
+    if (backendFramework !== 'Unknown') {
+        api += `### ${backendFramework} API\n\n`;
         
-        switch (analysis.backend.framework) {
+        switch (backendFramework) {
             case 'Express.js':
                 api += '#### Example Routes\n\n';
                 api += '```javascript\n';
@@ -410,11 +418,12 @@ export function generateAPISection(analysis: ProjectAnalysis): string {
     }
     
     // Frontend API calls
-    if (analysis.frontend.framework !== 'Unknown') {
+    const frontendFramework = getFrameworkName(analysis.frontend.framework);
+    if (frontendFramework !== 'Unknown') {
         api += '### Frontend API Integration\n\n';
         api += '```javascript\n';
         
-        if (analysis.frontend.framework === 'React') {
+        if (frontendFramework === 'React') {
             api += 'import { useState, useEffect } from \'react\';\n';
             api += 'import axios from \'axios\';\n\n';
             api += 'function UserList() {\n';
@@ -432,7 +441,7 @@ export function generateAPISection(analysis: ProjectAnalysis): string {
             api += '    </ul>\n';
             api += '  );\n';
             api += '}\n';
-        } else if (analysis.frontend.framework === 'Vue') {
+        } else if (frontendFramework === 'Vue') {
             api += '<template>\n';
             api += '  <ul>\n';
             api += '    <li v-for="user in users" :key="user.id">\n';

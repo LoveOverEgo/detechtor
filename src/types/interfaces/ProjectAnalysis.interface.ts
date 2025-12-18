@@ -1,7 +1,9 @@
 
 export interface ProjectAnalysis {
+    projectId?: string;
     rootPath?: string;
     projectTypeHints?: string[];
+    components: ComponentAnalysis[];
     languages: string[];
     frontend: FrontendAnalysis;
     backend: BackendAnalysis;
@@ -19,13 +21,50 @@ export interface ProjectAnalysis {
     };
 }
 
-export interface FrontendAnalysis {
-    framework: string;
+export interface ComponentAnalysis {
+    id: string;
+    kind: ComponentKind;
+    name?: string;
+    rootPath: string;
+    languages: string[];
+    packageManagers: string[];
+    hasLockFile: boolean;
+    dependencies?: DependencyAnalysis;
+    testing?: TestingAnalysis;
+    fileStructure?: ProjectFileStructure;
+    frontend?: FrontendAnalysis;
+    backend?: BackendAnalysis;
+    technologies: TechnologyDescriptor[];
+}
+
+export type ComponentKind = 'frontend' | 'backend' | 'service' | 'library' | 'unknown';
+
+export type TechnologyKind =
+    | 'framework'
+    | 'runtime'
+    | 'meta-framework'
+    | 'build-tool'
+    | 'css'
+    | 'ui'
+    | 'database'
+    | 'orm'
+    | 'service'
+    | 'testing'
+    | 'other';
+
+export interface TechnologyDescriptor {
+    name: string;
     version?: string;
-    buildTool?: string;
-    buildToolVersion?: string;
+    kind: TechnologyKind;
+}
+
+export interface FrontendAnalysis {
+    framework: Framework;
+    frameworks?: Framework[];
     hasRouter: boolean;
     hasStateManagement: boolean;
+    buildTool?: string;
+    buildToolVersion?: string;
     cssFramework?: string;
     cssPreprocessor?: string;
     uiLibrary?: string;
@@ -53,10 +92,20 @@ export interface FrontendAnalysis {
     testDirectories: string[];
 }
 
-export interface BackendAnalysis {
-    framework: string;
+export interface Framework {
+    name: string;
     version?: string;
+    server?: string;
+    hasRouter?: boolean;
+    hasStateManagement?: boolean;
+}
+
+export interface BackendAnalysis {
+    framework: Framework;
+    frameworks?: Framework[];
     runtime?: string;
+    runtimes?: string[];
+    servers?: string[];
     database: string[];
     orm?: string;
     server?: string;

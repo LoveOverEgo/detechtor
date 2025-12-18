@@ -15,5 +15,15 @@ export interface WorkspaceAnalysis {
     projects: ProjectAnalysis[];
     summary: {
         projectCount: number;
+        frontendComponents: WorkspaceComponentRef[];
+        backendComponents: WorkspaceComponentRef[];
     };
+}
+
+export interface WorkspaceComponentRef {
+    projectId: string;
+    componentId: string;
+    name: string;
+    rootPath: string;
+    kind: 'frontend' | 'backend';
 }

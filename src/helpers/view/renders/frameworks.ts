@@ -4,8 +4,8 @@ import { escapeHtml } from "../converters/strings";
 export function renderFrameworksSection(analysis: ProjectAnalysis): string {
         const frontend = analysis.frontend;
         const backend = analysis.backend;
-        const hasFrontend = frontend.framework !== 'Unknown';
-        const hasBackend = backend.framework !== 'Unknown';
+        const hasFrontend = frontend.framework?.name !== 'Unknown';
+        const hasBackend = backend.framework?.name !== 'Unknown';
 
         if (!hasFrontend && !hasBackend) {
             return `
@@ -36,8 +36,8 @@ export function renderFrameworksSection(analysis: ProjectAnalysis): string {
                                 <span class="badge badge-frontend">Web</span>
                             </div>
                             <div class="framework-details">
-                                <div class="framework-name">${escapeHtml(frontend.framework)}</div>
-                                ${frontend.version ? `<div class="framework-version">v${escapeHtml(frontend.version)}</div>` : ''}
+                                <div class="framework-name">${escapeHtml(frontend.framework.name)}</div>
+                                ${frontend.framework.version ? `<div class="framework-version">v${escapeHtml(frontend.framework.version)}</div>` : ''}
                                 
                                 ${frontend.buildTool ? `
                                     <div class="framework-feature">
@@ -78,8 +78,8 @@ export function renderFrameworksSection(analysis: ProjectAnalysis): string {
                                 <span class="badge badge-backend">Server</span>
                             </div>
                             <div class="framework-details">
-                                <div class="framework-name">${escapeHtml(backend.framework)}</div>
-                                ${backend.version ? `<div class="framework-version">v${escapeHtml(backend.version)}</div>` : ''}
+                                <div class="framework-name">${escapeHtml(backend.framework.name)}</div>
+                                ${backend.framework.version ? `<div class="framework-version">v${escapeHtml(backend.framework.version)}</div>` : ''}
                                 
                                 ${backend.runtime ? `
                                     <div class="framework-feature">

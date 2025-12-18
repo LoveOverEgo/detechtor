@@ -1,4 +1,4 @@
-import { ProjectAnalysis } from '../analyzers';
+import { ProjectAnalysis } from "../types";
 
 export function generateBadges(analysis: ProjectAnalysis): string {
     const badges: string[] = [];
@@ -49,8 +49,8 @@ export function generateBadges(analysis: ProjectAnalysis): string {
     }
     
     // Package manager badge
-    if (analysis.frontend.packageManager) {
-        const pm = analysis.frontend.packageManager;
+    if (analysis.dependencies.packageManagers.length > 0) {
+        const pm = analysis.dependencies.packageManagers[0];
         badges.push(`![${pm}](https://img.shields.io/badge/${pm}-package_manager-blue)`);
     }
     
@@ -110,7 +110,7 @@ export function generateQuickStart(analysis: ProjectAnalysis): string {
     quickStart += '### Prerequisites\n\n';
     
     const prerequisites: string[] = [];
-    if (analysis.languages.includes('Node.js') || analysis.frontend.packageManager) {
+    if (analysis.languages.includes('Node.js') || analysis.dependencies.packageManagers.includes('npm')) {
         prerequisites.push('[Node.js](https://nodejs.org/) (v14 or higher)');
     }
     if (analysis.languages.includes('Python')) {
@@ -141,14 +141,14 @@ export function generateQuickStart(analysis: ProjectAnalysis): string {
         quickStart += `git clone ${analysis.projectInfo.repository}\n`;
         quickStart += `cd ${analysis.projectInfo.name}\n\n`;
     }
-    
-    if (analysis.frontend.packageManager === 'npm') {
+
+    if (analysis.dependencies.packageManagers.includes('npm')) {
         quickStart += '# Install dependencies\n';
         quickStart += 'npm install\n\n';
         
         quickStart += '# Start development server\n';
         quickStart += 'npm start\n';
-    } else if (analysis.frontend.packageManager === 'yarn') {
+    } else if (analysis.dependencies.packageManagers.includes('yarn')) {
         quickStart += '# Install dependencies\n';
         quickStart += 'yarn install\n\n';
         
@@ -179,19 +179,19 @@ export function generateInstallation(analysis: ProjectAnalysis): string {
     installation += 'Choose the installation method that fits your needs:\n\n';
     
     // Method 1: Using package manager
-    if (analysis.frontend.packageManager) {
+    if (analysis.dependencies.packageManagers.length > 0) {
         installation += '### Using Package Manager\n\n';
         installation += '```bash\n';
         
-        if (analysis.frontend.packageManager === 'npm') {
+        if (analysis.dependencies.packageManagers.includes('npm')) {
             installation += 'npm install\n';
             installation += '# or\n';
             installation += 'npm ci  # for CI environments\n';
-        } else if (analysis.frontend.packageManager === 'yarn') {
+        } else if (analysis.dependencies.packageManagers.includes('yarn')) {
             installation += 'yarn install\n';
             installation += '# or\n';
             installation += 'yarn install --frozen-lockfile  # for CI environments\n';
-        } else if (analysis.frontend.packageManager === 'pnpm') {
+        } else if (analysis.dependencies.packageManagers.includes('pnpm')) {
             installation += 'pnpm install\n';
         }
         
@@ -256,11 +256,11 @@ export function generateUsage(analysis: ProjectAnalysis): string {
     usage += 'To start the development server:\n\n';
     usage += '```bash\n';
     
-    if (analysis.frontend.packageManager === 'npm') {
+    if (analysis.dependencies.packageManagers.includes('npm')) {
         usage += 'npm start\n';
         usage += '# or for hot reload\n';
         usage += 'npm run dev\n';
-    } else if (analysis.frontend.packageManager === 'yarn') {
+    } else if (analysis.dependencies.packageManagers.includes('yarn')) {
         usage += 'yarn start\n';
         usage += '# or for hot reload\n';
         usage += 'yarn dev\n';
@@ -276,9 +276,9 @@ export function generateUsage(analysis: ProjectAnalysis): string {
     usage += '### Building for Production\n\n';
     usage += '```bash\n';
     
-    if (analysis.frontend.packageManager === 'npm') {
+    if (analysis.dependencies.packageManagers.includes('npm')) {
         usage += 'npm run build\n';
-    } else if (analysis.frontend.packageManager === 'yarn') {
+    } else if (analysis.dependencies.packageManagers.includes('yarn')) {
         usage += 'yarn build\n';
     }
     
@@ -290,7 +290,7 @@ export function generateUsage(analysis: ProjectAnalysis): string {
         usage += '| Script | Description |\n';
         usage += '|--------|-------------|\n';
         
-        if (analysis.frontend.packageManager === 'npm' || analysis.frontend.packageManager === 'yarn') {
+        if (analysis.dependencies.packageManagers.includes('npm') || analysis.dependencies.packageManagers.includes('yarn')) {
             const scripts = [
                 { name: 'start/dev', desc: 'Start development server' },
                 { name: 'build', desc: 'Build for production' },
@@ -512,13 +512,13 @@ ${analysis.testing.frameworks && analysis.testing.frameworks.length > 0 ? `
 Make sure all tests pass before submitting:
 
 \`\`\`bash
-${analysis.frontend.packageManager === 'yarn' ? 'yarn test' : 'npm test'}
+${analysis.dependencies.packageManagers.includes('yarn') ? 'yarn test' : 'npm test'}
 \`\`\`
 
 For test coverage:
 
 \`\`\`bash
-${analysis.frontend.packageManager === 'yarn' ? 'yarn test:coverage' : 'npm run test:coverage'}
+${analysis.dependencies.packageManagers.includes('yarn') ? 'yarn test:coverage' : 'npm run test:coverage'}
 \`\`\`
 ` : ''}
 

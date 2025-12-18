@@ -1,9 +1,9 @@
-import { ProjectAnalysis } from "../../../analyzers";
+import { ProjectAnalysis } from "../../../types";
 import { escapeHtml } from "../converters/strings";
 
 export function renderDependenciesSection(analysis: ProjectAnalysis): string {
         const dependencies = analysis.dependencies;
-        const allDeps = [...dependencies.production, ...dependencies.development];
+        const allDeps = dependencies.classified.all;
         
         if (allDeps.length === 0) {
             return `
@@ -42,19 +42,19 @@ export function renderDependenciesSection(analysis: ProjectAnalysis): string {
                 <div class="dependency-stats">
                     <div class="stat-item">
                         <span class="stat-label">Production:</span>
-                        <span class="stat-value">${dependencies.production.length}</span>
+                        <span class="stat-value">${dependencies.classified.production.length}</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Development:</span>
-                        <span class="stat-value">${dependencies.development.length}</span>
+                        <span class="stat-value">${dependencies.classified.development.length}</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Peer:</span>
-                        <span class="stat-value">${dependencies.peer.length}</span>
+                        <span class="stat-value">${dependencies.classified.peer.length}</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Optional:</span>
-                        <span class="stat-value">${dependencies.optional.length}</span>
+                        <span class="stat-value">${dependencies.classified.optional.length}</span>
                     </div>
                 </div>
                 

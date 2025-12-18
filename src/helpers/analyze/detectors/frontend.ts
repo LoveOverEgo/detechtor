@@ -1,41 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'glob';
-
-export interface FrontendAnalysis {
-    framework: string;
-    version?: string;
-    buildTool?: string;
-    buildToolVersion?: string;
-    packageManager?: string;
-    hasRouter: boolean;
-    hasStateManagement: boolean;
-    cssFramework?: string;
-    cssPreprocessor?: string;
-    uiLibrary?: string;
-    iconsLibrary?: string;
-    formLibrary?: string;
-    chartLibrary?: string;
-    internationalization?: string;
-    metaFrameworks: string[];
-    features: {
-        hasTypeScript: boolean;
-        hasJSX: boolean;
-        hasSSR: boolean;
-        hasStaticSite: boolean;
-        hasPWA: boolean;
-        hasMobile: boolean;
-        hasDesktop: boolean;
-        hasTesting: boolean;
-        hasStorybook: boolean;
-        hasLinting: boolean;
-        hasFormatting: boolean;
-    };
-    configFiles: string[];
-    entryPoints: string[];
-    sourceDirectories: string[];
-    testDirectories: string[];
-}
+import { FrontendAnalysis } from '../../../types/index';
 
 export async function detectFrontend(projectPath: string): Promise<FrontendAnalysis> {
     const analysis: FrontendAnalysis = {
@@ -63,10 +29,6 @@ export async function detectFrontend(projectPath: string): Promise<FrontendAnaly
     };
 
     try {
-        // Phase 1: Detect package manager and read package.json
-        const packageManager = await detectPackageManager(projectPath);
-        analysis.packageManager = packageManager;
-
         const packageJson = await readPackageJson(projectPath);
         if (packageJson) {
             // Phase 2: Detect framework from dependencies
@@ -121,43 +83,7 @@ export async function detectFrontend(projectPath: string): Promise<FrontendAnaly
     }
 }
 
-async function detectPackageManager(projectPath: string): Promise<string> {
-    const lockFiles = [
-        { file: 'package-lock.json', manager: 'npm' },
-        { file: 'yarn.lock', manager: 'yarn' },
-        { file: 'pnpm-lock.yaml', manager: 'pnpm' },
-        { file: 'bun.lockb', manager: 'bun' },
-    ];
-
-    for (const lockFile of lockFiles) {
-        try {
-            await fs.access(path.join(projectPath, lockFile.file));
-            return lockFile.manager;
-        } catch {
-            // Continue checking other lock files
-        }
-    }
-
-    // Check for package manager in package.json scripts
-    try {
-        const packageJsonPath = path.join(projectPath, 'package.json');
-        const content = await fs.readFile(packageJsonPath, 'utf8');
-        const packageJson = JSON.parse(content);
-        
-        if (packageJson.scripts) {
-            const scripts = Object.values(packageJson.scripts).join(' ');
-            if (scripts.includes('yarn')) return 'yarn';
-            if (scripts.includes('pnpm')) return 'pnpm';
-            if (scripts.includes('bun')) return 'bun';
-        }
-    } catch {
-        // Couldn't read package.json
-    }
-
-    return 'npm'; // Default to npm
-}
-
-async function readPackageJson(projectPath: string): Promise<any> {
+export async function readPackageJson(projectPath: string): Promise<any> {
     try {
         const packageJsonPath = path.join(projectPath, 'package.json');
         const content = await fs.readFile(packageJsonPath, 'utf8');

@@ -1,4 +1,4 @@
-import { ProjectAnalysis } from "../../../analyzers";
+import { ProjectAnalysis } from "../../../types";
 import { escapeHtml } from "../converters/strings";
 
 export function renderTestingSection(analysis: ProjectAnalysis): string {

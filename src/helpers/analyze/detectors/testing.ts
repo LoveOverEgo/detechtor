@@ -1,71 +1,12 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'glob';
+import { TestingAnalysis } from '../../../types/index';
 
-export interface TestingAnalysis {
-    frameworks: string[];
-    coverageTools: string[];
-    e2eTools: string[];
-    assertionLibraries: string[];
-    mockingLibraries: string[];
-    snapshotTesting: boolean;
-    visualTesting: boolean;
-    performanceTesting: boolean;
-    securityTesting: boolean;
-    testStructure: {
-        testDirectory: string;
-        testFilePatterns: string[];
-        fixtureDirectory?: string;
-        mockDirectory?: string;
-        snapshotDirectory?: string;
-    };
-    configFiles: string[];
-    scripts: {
-        test?: string;
-        testWatch?: string;
-        testCoverage?: string;
-        testE2E?: string;
-        testUnit?: string;
-        testIntegration?: string;
-    };
-    languages: string[];
-    features: {
-        hasParallelTesting: boolean;
-        hasCIIntegration: boolean;
-        hasReporters: boolean;
-        hasWatchMode: boolean;
-        hasDebugging: boolean;
-        hasIsolation: boolean;
-    };
-}
+
 
 export async function detectTestingTools(projectPath: string): Promise<TestingAnalysis> {
-    const analysis: TestingAnalysis = {
-        frameworks: [],
-        coverageTools: [],
-        e2eTools: [],
-        assertionLibraries: [],
-        mockingLibraries: [],
-        snapshotTesting: false,
-        visualTesting: false,
-        performanceTesting: false,
-        securityTesting: false,
-        testStructure: {
-            testDirectory: '',
-            testFilePatterns: [],
-        },
-        configFiles: [],
-        scripts: {},
-        languages: [],
-        features: {
-            hasParallelTesting: false,
-            hasCIIntegration: false,
-            hasReporters: false,
-            hasWatchMode: false,
-            hasDebugging: false,
-            hasIsolation: false,
-        },
-    };
+    const analysis = {} as TestingAnalysis;
 
     try {
         // Phase 1: Detect from package.json dependencies and scripts
@@ -106,7 +47,7 @@ export async function detectTestingTools(projectPath: string): Promise<TestingAn
     }
 }
 
-async function analyzePackageJson(projectPath: string): Promise<Partial<TestingAnalysis>> {
+export async function analyzePackageJson(projectPath: string): Promise<Partial<TestingAnalysis>> {
     const result: Partial<TestingAnalysis> = {
         frameworks: [],
         coverageTools: [],

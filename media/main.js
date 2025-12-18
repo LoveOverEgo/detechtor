@@ -18,6 +18,19 @@ document.querySelectorAll('.refresh-btn').forEach(btn => {
     });
 });
 
+// Handle project selector
+document.querySelectorAll('.project-select').forEach(select => {
+    select.addEventListener('change', (e) => {
+        const projectId = e.target.value;
+        if (projectId) {
+            vscode.postMessage({
+                command: 'selectProject',
+                projectId: projectId
+            });
+        }
+    });
+});
+
 // Handle copy buttons
 document.querySelectorAll('.copy-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {

@@ -1,74 +1,10 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'glob';
-
-export interface BackendAnalysis {
-    framework: string;
-    version?: string;
-    runtime?: string;
-    database: string[];
-    orm?: string;
-    server?: string;
-    authentication?: string[];
-    caching?: string[];
-    messaging?: string[];
-    search?: string[];
-    monitoring?: string[];
-    features: {
-        hasGraphQL: boolean;
-        hasREST: boolean;
-        hasWebSockets: boolean;
-        hasMicroservices: boolean;
-        hasQueue: boolean;
-        hasCronJobs: boolean;
-        hasFileUpload: boolean;
-        hasValidation: boolean;
-        hasTesting: boolean;
-        hasDocumentation: boolean;
-    };
-    deployment: {
-        hasDocker: boolean;
-        hasKubernetes: boolean;
-        hasCI: boolean;
-        cloudProvider?: string;
-    };
-    configFiles: string[];
-    entryPoints: string[];
-    apiRoutes: string[];
-    models: string[];
-}
+import { BackendAnalysis } from '../../../types/index';
 
 export async function detectBackend(projectPath: string): Promise<BackendAnalysis> {
-    const analysis: BackendAnalysis = {
-        framework: 'Unknown',
-        database: [],
-        authentication: [],
-        caching: [],
-        messaging: [],
-        search: [],
-        monitoring: [],
-        features: {
-            hasGraphQL: false,
-            hasREST: false,
-            hasWebSockets: false,
-            hasMicroservices: false,
-            hasQueue: false,
-            hasCronJobs: false,
-            hasFileUpload: false,
-            hasValidation: false,
-            hasTesting: false,
-            hasDocumentation: false,
-        },
-        deployment: {
-            hasDocker: false,
-            hasKubernetes: false,
-            hasCI: false,
-        },
-        configFiles: [],
-        entryPoints: [],
-        apiRoutes: [],
-        models: [],
-    };
+    const analysis = {} as BackendAnalysis;
 
     try {
         // Phase 1: Detect runtime and framework

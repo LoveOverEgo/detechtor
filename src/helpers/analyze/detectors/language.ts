@@ -1,16 +1,23 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as vscode from 'vscode';
 import { glob } from 'glob';
+import { LanguageStats } from '../../../types/index';
 
-export interface LanguageStats {
-    [language: string]: {
-        files: number;
-        lines: number;
-        bytes: number;
-        extensions: Set<string>;
-        primaryExtension?: string;
-    };
-}
+const defaultIgnoredPatterns = [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/build/**',
+        '**/.next/**',
+        '**/.nuxt/**',
+        '**/out/**',
+        '**/*.min.js',
+        '**/*.min.css',
+        '**/package-lock.json',
+        '**/yarn.lock',
+        '**/.DS_Store',
+];
 
 export async function detectLanguages(projectPath: string): Promise<string[]> {
     try {
@@ -24,20 +31,7 @@ export async function detectLanguages(projectPath: string): Promise<string[]> {
 
 async function analyzeLanguages(projectPath: string): Promise<LanguageStats> {
     const stats: LanguageStats = {};
-    const ignoredPatterns = [
-        '**/node_modules/**',
-        '**/.git/**',
-        '**/dist/**',
-        '**/build/**',
-        '**/.next/**',
-        '**/.nuxt/**',
-        '**/out/**',
-        '**/*.min.js',
-        '**/*.min.css',
-        '**/package-lock.json',
-        '**/yarn.lock',
-        '**/.DS_Store',
-    ];
+    const ignoredPatterns = vscode.workspace.getConfiguration('Detechtor.setting').get('ignoredPaths', defaultIgnoredPatterns);
 
     try {
         // Get all files in project
@@ -55,7 +49,6 @@ async function analyzeLanguages(projectPath: string): Promise<LanguageStats> {
             await Promise.all(
                 batch.map(async (filePath) => {
                     try {
-                        const relativePath = path.relative(projectPath, filePath);
                         const ext = path.extname(filePath).toLowerCase();
                         const language = await detectLanguageByFile(filePath, ext);
 
@@ -216,7 +209,7 @@ async function detectLanguageByFile(filePath: string, ext: string): Promise<stri
     return extensionMap[ext] || null;
 }
 
-function rankLanguages(stats: LanguageStats): string[] {
+export function rankLanguages(stats: LanguageStats): string[] {
     if (Object.keys(stats).length === 0) {
         return [];
     }
@@ -331,48 +324,4 @@ async function fallbackDetection(projectPath: string): Promise<string[]> {
     }
 
     return Array.from(languages);
-}
-
-// Utility function to get detailed language information
-export async function getLanguageDetails(projectPath: string): Promise<LanguageStats> {
-    try {
-        return await analyzeLanguages(projectPath);
-    } catch (error) {
-        console.error('Error getting language details:', error);
-        return {};
-    }
-}
-
-// Detect if project is primarily TypeScript
-export async function isTypeScriptProject(projectPath: string): Promise<boolean> {
-    try {
-        const stats = await analyzeLanguages(projectPath);
-        const tsFiles = stats['TypeScript']?.files || 0;
-        const jsFiles = stats['JavaScript']?.files || 0;
-        
-        // Consider it TypeScript project if:
-        // 1. Has tsconfig.json
-        // 2. Has more TypeScript files than JavaScript files
-        // 3. Has at least one TypeScript file
-        
-        const hasTsConfig = await fs.access(path.join(projectPath, 'tsconfig.json')).then(() => true).catch(() => false);
-        
-        return hasTsConfig || (tsFiles > 0 && tsFiles >= jsFiles);
-    } catch {
-        return false;
-    }
-}
-
-// Detect if project uses JSX/TSX
-export async function usesJSX(projectPath: string): Promise<boolean> {
-    try {
-        const files = await glob('**/*.{jsx,tsx}', {
-            cwd: projectPath,
-            ignore: ['node_modules/**', '.git/**'],
-            nodir: true,
-        });
-        return files.length > 0;
-    } catch {
-        return false;
-    }
 }

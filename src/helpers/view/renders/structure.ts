@@ -1,4 +1,4 @@
-import { ProjectAnalysis } from "../../../analyzers";
+import { ProjectAnalysis } from "../../../types";
 import { escapeHtml, truncatePath } from "../converters/strings";
 
 

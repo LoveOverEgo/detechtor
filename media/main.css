@@ -1,5 +1,60 @@
 /* Additional styles for main content */
 
+/* Workspace Summary */
+.workspace-summary {
+    padding: 12px 16px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 8px;
+    background: var(--vscode-sideBar-background);
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.workspace-summary__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.workspace-summary__title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.workspace-summary__meta {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.workspace-summary__controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.workspace-summary__label {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.project-select {
+    flex: 1;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 12px;
+}
+
+.project-select:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+}
+
 /* Feature Tags */
 .feature-tag {
     display: inline-block;

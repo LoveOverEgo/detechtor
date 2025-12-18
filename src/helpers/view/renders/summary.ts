@@ -1,4 +1,4 @@
-import { ProjectAnalysis } from "../../../analyzers";
+import { ProjectAnalysis } from "../../../types";
 import { escapeHtml } from "../converters/strings";
 
 export function renderSummaryCards(analysis: ProjectAnalysis): string {
@@ -14,10 +14,10 @@ export function renderSummaryCards(analysis: ProjectAnalysis): string {
         },
         {
             title: 'Dependencies',
-            value: analysis!.dependencies.production.length + analysis!.dependencies.development.length,
+            value: analysis!.dependencies.classified.production.length + analysis!.dependencies.classified.development.length,
             icon: '📦',
             color: '#2196F3',
-            description: `${analysis!.dependencies.production.length} production, ${analysis!.dependencies.development.length} dev`
+            description: `${analysis!.dependencies.classified.production.length} production, ${analysis!.dependencies.classified.development.length} dev`
         },
         {
             title: 'Testing Tools',

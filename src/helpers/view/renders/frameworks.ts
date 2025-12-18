@@ -1,4 +1,4 @@
-import { ProjectAnalysis } from "../../../analyzers";
+import { ProjectAnalysis } from "../../../types";
 import { escapeHtml } from "../converters/strings";
 
 export function renderFrameworksSection(analysis: ProjectAnalysis): string {
@@ -53,10 +53,10 @@ export function renderFrameworksSection(analysis: ProjectAnalysis): string {
                                     </div>
                                 ` : ''}
                                 
-                                ${frontend.packageManager ? `
+                                ${analysis.dependencies.packageManagers ? `
                                     <div class="framework-feature">
                                         <span class="feature-label">Package Manager:</span>
-                                        <span class="feature-value">${escapeHtml(frontend.packageManager)}</span>
+                                        <span class="feature-value">${escapeHtml(analysis.dependencies.packageManagers[0])}</span>
                                     </div>
                                 ` : ''}
                                 

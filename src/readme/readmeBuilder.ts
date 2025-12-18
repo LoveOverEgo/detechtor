@@ -1,4 +1,4 @@
-import { ProjectAnalysis } from '../analyzers';
+import { ProjectAnalysis } from '../types';
 import { generateBadges, generateTableOfContents, generateInstallation, generateUsage, generateAPISection, generateContributing, generateLicense, generateContact, generateQuickStart } from './templates';
 
 export interface ReadmeOptions {
@@ -480,13 +480,13 @@ function generateTechnologies(analysis: ProjectAnalysis): string {
             technologies += `- **Coverage:** ${analysis.testing.coverageTools.join(', ')}\n`;
         }
     }
-    
-    if (analysis.dependencies.production.length > 0) {
+
+    if (analysis.dependencies.classified.production.length > 0) {
         technologies += '\n### Key Dependencies\n';
         
         // Group dependencies by category
         const categories: { [key: string]: string[] } = {};
-        analysis.dependencies.production.forEach(dep => {
+        analysis.dependencies.classified.production.forEach(dep => {
             if (!categories[dep.category]) {
                 categories[dep.category] = [];
             }
@@ -531,7 +531,7 @@ function generateTestingSection(analysis: ProjectAnalysis): string {
         testing += '### Running Tests\n\n';
         testing += '```bash\n';
         
-        if (analysis.frontend.packageManager === 'yarn') {
+        if (analysis.dependencies.packageManagers.includes('yarn')) {
             testing += '# Run unit tests\n';
             testing += 'yarn test\n\n';
             testing += '# Run tests in watch mode\n';
@@ -656,7 +656,7 @@ export function estimateReadmeQuality(analysis: ProjectAnalysis): number {
     if (analysis.projectInfo.description) score += 10;
     
     // Check for installation instructions
-    if (analysis.frontend.packageManager || analysis.backend.runtime) score += 10;
+    if (analysis.dependencies.packageManagers.length > 0 || analysis.backend.runtime) score += 10;
     
     // Check for usage examples
     if (analysis.frontend.framework !== 'Unknown' || analysis.backend.framework !== 'Unknown') score += 10;

@@ -1,4 +1,4 @@
-import { ProjectAnalysis } from "../../../analyzers";
+import { ProjectAnalysis } from "../../../types";
 import { escapeHtml, truncatePath } from "../converters/strings";
 
 export function getAnalysisText(analysis: ProjectAnalysis): string {
@@ -33,8 +33,8 @@ export function getAnalysisText(analysis: ProjectAnalysis): string {
     lines.push('');
     
     lines.push('=== DEPENDENCIES ===');
-    lines.push(`Production: ${analysis.dependencies.production.length}`);
-    lines.push(`Development: ${analysis.dependencies.development.length}`);
+    lines.push(`Production: ${analysis.dependencies.classified.production.length}`);
+    lines.push(`Development: ${analysis.dependencies.classified.development.length}`);
     lines.push('');
     
     lines.push('=== STRUCTURE ===');

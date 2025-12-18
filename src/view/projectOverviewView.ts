@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { ProjectAnalysis } from '../analyzers';
-import { getNonce, renderHeader, renderSummaryCards, renderLanguagesSection, renderFrameworksSection, renderDependenciesSection, renderTestingSection, renderProjectStructureSection, renderActionsSection } from './helpers';
+import { ProjectAnalysis } from '../types/interfaces/ProjectAnalysis.interface';
+import { WorkspaceAnalysis } from '../types/interfaces/WorkspaceAnalysis.interface';
+import { getNonce, renderHeader, renderSummaryCards, renderLanguagesSection, renderFrameworksSection, renderDependenciesSection, renderTestingSection, renderProjectStructureSection, renderActionsSection, renderWorkspaceSummary } from '../helpers/view';
 
 export class ProjectOverviewViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private _disposables: vscode.Disposable[] = [];
+    private _workspaceAnalysis?: WorkspaceAnalysis;
+    private _selectedProjectId?: string;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -46,10 +48,13 @@ export class ProjectOverviewViewProvider implements vscode.WebviewViewProvider {
                         if (!message.path) return;
 
                         const folder = vscode.workspace.workspaceFolders?.[0];
-                        if (!folder) return;
+                        if (!folder && !this._analysis?.rootPath) return;
+
+                        const basePath = this._analysis?.rootPath ?? folder?.uri.fsPath;
+                        if (!basePath) return;
 
                         const targetUri = vscode.Uri.joinPath(
-                            folder.uri,
+                            vscode.Uri.file(basePath),
                             message.path
                         );
 
@@ -74,6 +79,13 @@ export class ProjectOverviewViewProvider implements vscode.WebviewViewProvider {
                             vscode.window.showErrorMessage(
                                 `Could not open ${message.path}`
                             );
+                        }
+
+                        return;
+
+                    case 'selectProject':
+                        if (message.projectId) {
+                            this.selectProject(message.projectId);
                         }
 
                         return;
@@ -111,6 +123,40 @@ export class ProjectOverviewViewProvider implements vscode.WebviewViewProvider {
     // Called by commands to push new data
     public update(analysis: ProjectAnalysis) {
         this._analysis = analysis;
+        this._workspaceAnalysis = undefined;
+        this._selectedProjectId = undefined;
+
+        if (!this._view) {
+            return;
+        }
+
+        this._view.webview.html = this._getHtmlForWebview(this._view.webview);
+    }
+
+    public updateWorkspace(analysis: WorkspaceAnalysis) {
+        this._workspaceAnalysis = analysis;
+        this._analysis = analysis.projects[0];
+        this._selectedProjectId = analysis.roots[0]?.id;
+
+        if (!this._view) {
+            return;
+        }
+
+        this._view.webview.html = this._getHtmlForWebview(this._view.webview);
+    }
+
+    private selectProject(projectId: string) {
+        if (!this._workspaceAnalysis) {
+            return;
+        }
+
+        const rootIndex = this._workspaceAnalysis.roots.findIndex(root => root.id === projectId);
+        if (rootIndex === -1) {
+            return;
+        }
+
+        this._analysis = this._workspaceAnalysis.projects[rootIndex];
+        this._selectedProjectId = projectId;
 
         if (!this._view) {
             return;
@@ -165,6 +211,7 @@ export class ProjectOverviewViewProvider implements vscode.WebviewViewProvider {
                 </head>
                 <body>
                     <div class="container">
+                        ${renderWorkspaceSummary(this._workspaceAnalysis, this._selectedProjectId)}
                         ${renderHeader(this._analysis)}
                         ${renderSummaryCards(this._analysis)}
                         ${renderLanguagesSection(this._analysis)}

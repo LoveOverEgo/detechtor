@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
-import { analyzeProject } from './analyzers/index';
+import { analyzeProject, analyzeWorkspace } from './analyze/index';
 import { buildReadme } from './readme/readmeBuilder';
 import { ProjectOverviewViewProvider } from './view/projectOverviewView';
+import { WorkspaceAnalysis } from './types';
 
 let registeredView: vscode.Disposable;
 let statusBarItem: vscode.StatusBarItem;
@@ -48,17 +49,18 @@ export function activate(context: vscode.ExtensionContext) {
                         }
 
                         progress.report({ increment: 0, message: 'Detecting languages...' });
-                        const analysis = await analyzeProject(folder.uri.fsPath);
+                        const workspaceAnalysis = await analyzeWorkspace(folder.uri.fsPath);
+                        const languages = getWorkspaceLanguages(workspaceAnalysis);
 
                         // Update status bar
-                        const languageCount = analysis.languages.length;
+                        const languageCount = languages.length;
                         statusBarItem.text = `$(file-code) ${languageCount} lang${
                             languageCount !== 1 ? 's' : ''
                         }`;
 
                         // Show quick info
                         vscode.window.showInformationMessage(
-                            `Project analysis complete: ${analysis.languages.join(', ')}`
+                            `Project analysis complete (${workspaceAnalysis.summary.projectCount} project${workspaceAnalysis.summary.projectCount !== 1 ? 's' : ''}): ${languages.join(', ')}`
                         );
 
                         progress.report({ increment: 100, message: 'Analysis complete!' });
@@ -92,29 +94,14 @@ export function activate(context: vscode.ExtensionContext) {
                 },
                 async (progress, token) => {
                     try {
-                        progress.report({ increment: 0, message: 'Scanning project structure...' });
-
-                        if (token.isCancellationRequested) {
-                            return;
-                        }
-
-                        progress.report({ increment: 30, message: 'Detecting frameworks...' });
-                        const analysis = await analyzeProject(folder.uri.fsPath, progress, token);
-
-                        if (token.isCancellationRequested) {
-                            return;
-                        }
-
-                        progress.report({ increment: 80, message: 'Rendering results...' });
-
+                        const workspaceAnalysis = await analyzeWorkspace(folder.uri.fsPath, progress, token);
                         // update the view with analysis & bring sidebar into view
-                        projectView.update(analysis);
+                        projectView.updateWorkspace(workspaceAnalysis);
                         await vscode.commands.executeCommand(
                             'workbench.view.extension.detechtor'
                         );
 
                         progress.report({ increment: 100, message: 'Analysis complete!' });
-
                     } catch (error) {
                         vscode.window.showErrorMessage(
                             `Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -208,8 +195,8 @@ export function activate(context: vscode.ExtensionContext) {
                     return;
                 }
 
-                const analysis = await analyzeProject(folder.uri.fsPath);
-                projectView.update(analysis);
+                const workspaceAnalysis = await analyzeWorkspace(folder.uri.fsPath);
+                projectView.updateWorkspace(workspaceAnalysis);
                 vscode.window.showInformationMessage('Analysis refreshed!');
             }
         }
@@ -241,10 +228,10 @@ export function activate(context: vscode.ExtensionContext) {
             setTimeout(async () => {
                 const folder = vscode.workspace.workspaceFolders![0];
                 try {
-                    const analysis = await analyzeProject(folder.uri.fsPath);
+                    const workspaceAnalysis = await analyzeWorkspace(folder.uri.fsPath);
                     
                     // Update status bar with detected languages
-                    const languageCount = analysis.languages.length;
+                    const languageCount = getWorkspaceLanguages(workspaceAnalysis).length;
                     statusBarItem.text = `$(file-code) ${languageCount} lang${
                         languageCount !== 1 ? 's' : ''
                     }`;
@@ -256,6 +243,16 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(autoAnalyze);
+}
+
+function getWorkspaceLanguages(workspaceAnalysis: WorkspaceAnalysis): string[] {
+    const languages = new Set<string>();
+    for (const project of workspaceAnalysis.projects) {
+        for (const language of project.languages ?? []) {
+            languages.add(language);
+        }
+    }
+    return Array.from(languages);
 }
 
 export function deactivate() {

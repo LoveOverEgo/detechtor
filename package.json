@@ -78,7 +78,8 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "echo \"No tests specified\" && exit 0",
+    "agent": "node scripts/agent.js"
   },
   "devDependencies": {
     "@types/node": "^24.10.2",

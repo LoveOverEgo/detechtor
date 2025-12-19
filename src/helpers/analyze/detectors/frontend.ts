@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'glob';
-import { FrontendAnalysis } from '../../../types/index';
+import { Framework, FrontendAnalysis } from '../../../types/index';
 
 export async function detectFrontend(projectPath: string): Promise<FrontendAnalysis> {
     const analysis: FrontendAnalysis = {
@@ -65,8 +65,11 @@ export async function detectFrontend(projectPath: string): Promise<FrontendAnaly
 
         // Phase 9: Verify framework by file patterns
         const verification = await verifyFrameworkByFiles(projectPath, analysis.framework);
-        if (verification.framework?.name !== 'Unknown' && verification.framework?.name !== analysis.framework?.name) {
-            analysis.framework = verification.framework ?? { name: 'Unknown' };
+        if (verification.framework?.name && verification.framework.name !== 'Unknown') {
+            analysis.framework = pickPrimaryFramework(
+                [verification.framework, ...(analysis.frameworks ?? [])]
+            ) ?? verification.framework;
+            analysis.frameworks = mergeFrameworks(analysis.frameworks ?? [], [verification.framework]);
         }
 
         analysis.features.hasJSX = verification.features!.hasJSX || analysis.features.hasJSX;
@@ -77,7 +80,7 @@ export async function detectFrontend(projectPath: string): Promise<FrontendAnaly
         analysis.buildTool = buildToolAnalysis.buildTool;
         analysis.buildToolVersion = buildToolAnalysis.version;
 
-        if (analysis.framework?.name && analysis.framework.name !== 'Unknown') {
+        if (analysis.framework?.name && analysis.framework.name !== 'Unknown' && (!analysis.frameworks || analysis.frameworks.length === 0)) {
             analysis.frameworks = [analysis.framework];
         }
 
@@ -112,43 +115,110 @@ function detectFrameworkFromDependencies(packageJson: any): Partial<FrontendAnal
         frameworks: [],
     };
 
-    // Framework detection in order of priority
-    if (deps['react'] || deps['react-dom']) {
-        result.framework = { name: 'React', version: deps['react'] || deps['react-dom'] };
-        result.hasRouter = Boolean(deps['react-router'] || deps['react-router-dom']);
-        result.hasStateManagement = Boolean(
-            deps['redux'] || deps['mobx'] || deps['zustand'] || deps['recoil']
-        );
-    } else if (deps['vue'] || deps['@vue/runtime-dom']) {
-        result.framework = { name: 'Vue', version: deps['vue'] || deps['@vue/runtime-dom'] };
-        result.hasRouter = Boolean(deps['vue-router']);
-        result.hasStateManagement = Boolean(deps['vuex'] || deps['pinia']);
-    } else if (deps['@angular/core']) {
-        result.framework = { name: 'Angular', version: deps['@angular/core'] };
-        result.hasRouter = true; // Angular has built-in router
-        result.hasStateManagement = Boolean(deps['@ngrx/store'] || deps['ngxs']);
-    } else if (deps['svelte'] || deps['svelte/store']) {
-        result.framework = { name: 'Svelte', version: deps['svelte'] };
-        result.hasRouter = Boolean(deps['svelte-routing'] || deps['@sveltejs/kit']);
-        result.hasStateManagement = true; // Svelte has built-in stores
-    } else if (deps['preact']) {
-        result.framework = { name: 'Preact', version: deps['preact'] };
-        result.hasRouter = Boolean(deps['preact-router']);
-    } else if (deps['solid-js']) {
-        result.framework = { name: 'SolidJS', version: deps['solid-js'] };
-        result.hasRouter = Boolean(deps['@solidjs/router']);
-    } else if (deps['lit'] || deps['lit-element']) {
-        result.framework = { name: 'Lit', version: deps['lit'] || deps['lit-element'] };
-    } else if (deps['alpinejs']) {
-        result.framework = { name: 'Alpine.js', version: deps['alpinejs'] };
+    const frameworks = detectFrameworksFromDependencies(deps);
+    result.frameworks = frameworks;
+    const primary = pickPrimaryFramework(frameworks);
+    if (primary) {
+        result.framework = primary;
     }
 
-    // Check for jQuery (legacy)
-    if (deps['jquery'] && result.framework?.name === 'Unknown') {
-        result.framework = { name: 'jQuery', version: deps['jquery'] };
-    }
+    result.hasRouter = Boolean(
+        deps['react-router'] ||
+        deps['react-router-dom'] ||
+        deps['vue-router'] ||
+        deps['svelte-routing'] ||
+        deps['@sveltejs/kit'] ||
+        deps['preact-router'] ||
+        deps['@solidjs/router'] ||
+        deps['@angular/router']
+    );
+
+    result.hasStateManagement = Boolean(
+        deps['redux'] ||
+        deps['mobx'] ||
+        deps['zustand'] ||
+        deps['recoil'] ||
+        deps['vuex'] ||
+        deps['pinia'] ||
+        deps['@ngrx/store'] ||
+        deps['ngxs']
+    );
 
     return result;
+}
+
+function detectFrameworksFromDependencies(deps: Record<string, string>): Framework[] {
+    const frameworks: Framework[] = [];
+
+    if (deps['react'] || deps['react-dom']) {
+        frameworks.push({ name: 'React', version: deps['react'] || deps['react-dom'] });
+    }
+    if (deps['vue'] || deps['@vue/runtime-dom']) {
+        frameworks.push({ name: 'Vue', version: deps['vue'] || deps['@vue/runtime-dom'] });
+    }
+    if (deps['@angular/core']) {
+        frameworks.push({ name: 'Angular', version: deps['@angular/core'] });
+    }
+    if (deps['svelte'] || deps['svelte/store']) {
+        frameworks.push({ name: 'Svelte', version: deps['svelte'] });
+    }
+    if (deps['preact']) {
+        frameworks.push({ name: 'Preact', version: deps['preact'] });
+    }
+    if (deps['solid-js']) {
+        frameworks.push({ name: 'SolidJS', version: deps['solid-js'] });
+    }
+    if (deps['lit'] || deps['lit-element']) {
+        frameworks.push({ name: 'Lit', version: deps['lit'] || deps['lit-element'] });
+    }
+    if (deps['alpinejs']) {
+        frameworks.push({ name: 'Alpine.js', version: deps['alpinejs'] });
+    }
+    if (deps['jquery']) {
+        frameworks.push({ name: 'jQuery', version: deps['jquery'] });
+    }
+
+    return frameworks;
+}
+
+function pickPrimaryFramework(frameworks: Framework[]): Framework | undefined {
+    if (!frameworks.length) {
+        return undefined;
+    }
+
+    const priority = [
+        'React',
+        'Vue',
+        'Angular',
+        'Svelte',
+        'Preact',
+        'SolidJS',
+        'Lit',
+        'Alpine.js',
+        'jQuery',
+    ];
+
+    for (const name of priority) {
+        const match = frameworks.find(framework => framework.name === name);
+        if (match) {
+            return match;
+        }
+    }
+
+    return frameworks[0];
+}
+
+function mergeFrameworks(existing: Framework[], incoming: Framework[]): Framework[] {
+    const merged = [...existing];
+    for (const framework of incoming) {
+        if (!framework?.name) {
+            continue;
+        }
+        if (!merged.some(item => item.name === framework.name)) {
+            merged.push(framework);
+        }
+    }
+    return merged;
 }
 
 function detectMetaFrameworks(packageJson: any): string[] {

@@ -83,6 +83,9 @@ export async function analyzeWorkspace(
                     name: component.name ?? root.name,
                     rootPath: component.rootPath,
                     kind: 'frontend',
+                    frameworks: component.technologies
+                        .filter(tech => tech.kind === 'framework')
+                        .map(tech => tech.name),
                 });
             }
 
@@ -93,6 +96,9 @@ export async function analyzeWorkspace(
                     name: component.name ?? root.name,
                     rootPath: component.rootPath,
                     kind: 'backend',
+                    frameworks: component.technologies
+                        .filter(tech => tech.kind === 'framework')
+                        .map(tech => tech.name),
                 });
             }
         }

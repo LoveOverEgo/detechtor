@@ -6,6 +6,12 @@ export function renderFrameworksSection(analysis: ProjectAnalysis): string {
         const backend = analysis.backend;
         const hasFrontend = frontend.framework?.name !== 'Unknown';
         const hasBackend = backend.framework?.name !== 'Unknown';
+        const frontendFrameworks = (frontend.frameworks && frontend.frameworks.length > 0)
+            ? frontend.frameworks
+            : (hasFrontend ? [frontend.framework] : []);
+        const backendFrameworks = (backend.frameworks && backend.frameworks.length > 0)
+            ? backend.frameworks
+            : (hasBackend ? [backend.framework] : []);
 
         if (!hasFrontend && !hasBackend) {
             return `
@@ -38,6 +44,14 @@ export function renderFrameworksSection(analysis: ProjectAnalysis): string {
                             <div class="framework-details">
                                 <div class="framework-name">${escapeHtml(frontend.framework.name)}</div>
                                 ${frontend.framework.version ? `<div class="framework-version">v${escapeHtml(frontend.framework.version)}</div>` : ''}
+                                ${frontendFrameworks.length > 1 ? `
+                                    <div class="framework-feature">
+                                        <span class="feature-label">Also:</span>
+                                        <span class="feature-value">${frontendFrameworks.slice(1).map(framework =>
+                                            escapeHtml(framework.name)
+                                        ).join(', ')}</span>
+                                    </div>
+                                ` : ''}
                                 
                                 ${frontend.buildTool ? `
                                     <div class="framework-feature">
@@ -80,11 +94,28 @@ export function renderFrameworksSection(analysis: ProjectAnalysis): string {
                             <div class="framework-details">
                                 <div class="framework-name">${escapeHtml(backend.framework.name)}</div>
                                 ${backend.framework.version ? `<div class="framework-version">v${escapeHtml(backend.framework.version)}</div>` : ''}
+                                ${backendFrameworks.length > 1 ? `
+                                    <div class="framework-feature">
+                                        <span class="feature-label">Also:</span>
+                                        <span class="feature-value">${backendFrameworks.slice(1).map(framework =>
+                                            escapeHtml(framework.name)
+                                        ).join(', ')}</span>
+                                    </div>
+                                ` : ''}
                                 
                                 ${backend.runtime ? `
                                     <div class="framework-feature">
                                         <span class="feature-label">Runtime:</span>
                                         <span class="feature-value">${escapeHtml(backend.runtime)}</span>
+                                    </div>
+                                ` : ''}
+                                
+                                ${backend.runtimes && backend.runtimes.length > 1 ? `
+                                    <div class="framework-feature">
+                                        <span class="feature-label">Also:</span>
+                                        <span class="feature-value">${backend.runtimes.slice(1).map(runtime =>
+                                            escapeHtml(runtime)
+                                        ).join(', ')}</span>
                                     </div>
                                 ` : ''}
                                 

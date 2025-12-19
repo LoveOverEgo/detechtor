@@ -26,4 +26,5 @@ export interface WorkspaceComponentRef {
     name: string;
     rootPath: string;
     kind: 'frontend' | 'backend';
+    frameworks: string[];
 }

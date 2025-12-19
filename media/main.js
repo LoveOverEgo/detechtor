@@ -31,6 +31,146 @@ document.querySelectorAll('.project-select').forEach(select => {
     });
 });
 
+// Handle workspace summary quick selects
+document.querySelectorAll('.workspace-summary__select').forEach(button => {
+    button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const projectId = e.currentTarget.getAttribute('data-project-id');
+        if (projectId) {
+            vscode.postMessage({
+                command: 'selectProject',
+                projectId: projectId
+            });
+        }
+    });
+});
+
+// Workspace summary filters (persisted)
+const savedState = vscode.getState() || {};
+const workspaceFilters = {
+    frontend: true,
+    backend: true,
+    framework: '',
+    ...(savedState.workspaceFilters || {})
+};
+
+const saveWorkspaceFilters = () => {
+    vscode.setState({
+        ...savedState,
+        workspaceFilters: { ...workspaceFilters }
+    });
+};
+
+const updateWorkspaceFilters = () => {
+    const items = document.querySelectorAll('.workspace-summary__item');
+    const query = workspaceFilters.framework.trim().toLowerCase();
+    const status = document.querySelector('.workspace-filter-status');
+    const groupCounts = {
+        frontend: 0,
+        backend: 0,
+        selected: 0
+    };
+    let visibleCount = 0;
+
+    items.forEach(item => {
+        const kind = item.getAttribute('data-kind');
+        const frameworks = item.getAttribute('data-frameworks') || '';
+        const matchKind = (kind === 'frontend' && workspaceFilters.frontend) ||
+            (kind === 'backend' && workspaceFilters.backend);
+        const matchFramework = !query || frameworks.includes(query);
+
+        const isVisible = matchKind && matchFramework;
+        item.style.display = isVisible ? '' : 'none';
+        if (isVisible) {
+            visibleCount += 1;
+            if (kind && Object.prototype.hasOwnProperty.call(groupCounts, kind)) {
+                groupCounts[kind] += 1;
+            }
+        }
+    });
+
+    if (status) {
+        const tokens = [];
+        if (!workspaceFilters.frontend) tokens.push('no frontend');
+        if (!workspaceFilters.backend) tokens.push('no backend');
+        if (query) tokens.push(`framework: ${query}`);
+        const label = tokens.length ? `Filters: ${tokens.join(', ')}` : 'Filters: none';
+        status.textContent = `${label} (${visibleCount})`;
+    }
+
+    document.querySelectorAll('.workspace-group-count').forEach(el => {
+        const kind = el.getAttribute('data-kind');
+        if (!kind) {
+            return;
+        }
+        if (kind === 'selected') {
+            return;
+        }
+        if (Object.prototype.hasOwnProperty.call(groupCounts, kind)) {
+            const totalAttr = el.getAttribute('data-total');
+            const total = totalAttr ? Number(totalAttr) : groupCounts[kind];
+            el.textContent = `(${groupCounts[kind]}/${total})`;
+        }
+    });
+
+    const selectedItems = document.querySelectorAll('.workspace-summary__selected .workspace-summary__item');
+    let selectedVisible = 0;
+    selectedItems.forEach(item => {
+        if (item.style.display !== 'none') {
+            selectedVisible += 1;
+        }
+    });
+    groupCounts.selected = selectedVisible;
+    const selectedTotal = selectedItems.length;
+    document.querySelectorAll('.workspace-summary__selected .workspace-group-count').forEach(el => {
+        el.textContent = `(${groupCounts.selected}/${selectedTotal})`;
+    });
+};
+
+document.querySelectorAll('.workspace-filter-kind').forEach(input => {
+    const kind = input.getAttribute('data-kind');
+    if (kind && Object.prototype.hasOwnProperty.call(workspaceFilters, kind)) {
+        input.checked = workspaceFilters[kind];
+    }
+    input.addEventListener('change', (e) => {
+        const kind = e.currentTarget.getAttribute('data-kind');
+        if (kind) {
+            workspaceFilters[kind] = e.currentTarget.checked;
+            saveWorkspaceFilters();
+            updateWorkspaceFilters();
+        }
+    });
+});
+
+const frameworkFilterInput = document.querySelector('.workspace-filter-framework');
+if (frameworkFilterInput) {
+    frameworkFilterInput.value = workspaceFilters.framework || '';
+    frameworkFilterInput.addEventListener('input', (e) => {
+        workspaceFilters.framework = e.currentTarget.value || '';
+        saveWorkspaceFilters();
+        updateWorkspaceFilters();
+    });
+}
+
+const resetButton = document.querySelector('.workspace-filter-reset');
+if (resetButton) {
+    resetButton.addEventListener('click', () => {
+        workspaceFilters.frontend = true;
+        workspaceFilters.backend = true;
+        workspaceFilters.framework = '';
+        document.querySelectorAll('.workspace-filter-kind').forEach(input => {
+            input.checked = true;
+        });
+        if (frameworkFilterInput) {
+            frameworkFilterInput.value = '';
+        }
+        saveWorkspaceFilters();
+        updateWorkspaceFilters();
+    });
+}
+
+updateWorkspaceFilters();
+
 // Handle copy buttons
 document.querySelectorAll('.copy-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {

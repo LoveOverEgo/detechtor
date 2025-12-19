@@ -3,6 +3,15 @@ import { ProjectAnalysis } from '../types';
 function getFrameworkName(framework: ProjectAnalysis['frontend']['framework'] | ProjectAnalysis['backend']['framework']): string {
     return framework?.name ?? 'Unknown';
 }
+
+function getFrameworkNames(frameworks: ProjectAnalysis['frontend']['frameworks'] | ProjectAnalysis['backend']['frameworks']): string[] {
+    if (!frameworks || frameworks.length === 0) {
+        return [];
+    }
+    return frameworks
+        .map(item => item?.name)
+        .filter((name): name is string => Boolean(name));
+}
 import { generateBadges, generateTableOfContents, generateInstallation, generateUsage, generateAPISection, generateContributing, generateLicense, generateContact, generateQuickStart } from './templates';
 
 export interface ReadmeOptions {
@@ -229,6 +238,10 @@ function generateFeatures(analysis: ProjectAnalysis): string {
     // Add framework-specific features
     const frontendFrameworkName = getFrameworkName(analysis.frontend.framework);
     const backendFrameworkName = getFrameworkName(analysis.backend.framework);
+    const frontendFrameworkNames = getFrameworkNames(analysis.frontend.frameworks);
+    const backendFrameworkNames = getFrameworkNames(analysis.backend.frameworks);
+    const extraFrontendFrameworks = getFrameworkNames(analysis.frontend.frameworks).filter(name => name !== frontendFrameworkName);
+    const extraBackendFrameworks = getFrameworkNames(analysis.backend.frameworks).filter(name => name !== backendFrameworkName);
 
     if (frontendFrameworkName !== 'Unknown') {
         features.push(`**${frontendFrameworkName}** - Modern frontend framework`);
@@ -241,6 +254,9 @@ function generateFeatures(analysis: ProjectAnalysis): string {
         if (analysis.frontend.cssFramework) {
             features.push(`**${analysis.frontend.cssFramework}** - CSS framework/styling`);
         }
+        if (extraFrontendFrameworks.length > 0) {
+            features.push(`**Additional Frontend Frameworks:** ${extraFrontendFrameworks.join(', ')}`);
+        }
     }
     
     if (backendFrameworkName !== 'Unknown') {
@@ -250,6 +266,9 @@ function generateFeatures(analysis: ProjectAnalysis): string {
         }
         if (analysis.backend.authentication && analysis.backend.authentication.length > 0) {
             features.push(`**${analysis.backend.authentication.join(', ')}** - Authentication system`);
+        }
+        if (extraBackendFrameworks.length > 0) {
+            features.push(`**Additional Backend Frameworks:** ${extraBackendFrameworks.join(', ')}`);
         }
     }
     
@@ -450,7 +469,8 @@ function generateTechnologies(analysis: ProjectAnalysis): string {
     const backendFrameworkName = getFrameworkName(analysis.backend.framework);
 
     if (frontendFrameworkName !== 'Unknown') {
-        technologies += `- **Framework:** ${frontendFrameworkName} ${analysis.frontend.framework.version ? `(${analysis.frontend.framework.version})` : ''}\n`;
+        const frameworkLabel = frontendFrameworkName;
+        technologies += `- **Framework:** ${frameworkLabel} ${analysis.frontend.framework.version ? `(${analysis.frontend.framework.version})` : ''}\n`;
         if (analysis.frontend.cssFramework) {
             technologies += `- **Styling:** ${analysis.frontend.cssFramework}\n`;
         }
@@ -466,7 +486,8 @@ function generateTechnologies(analysis: ProjectAnalysis): string {
     
     technologies += '\n### Backend\n';
     if (backendFrameworkName !== 'Unknown') {
-        technologies += `- **Framework:** ${backendFrameworkName} ${analysis.backend.framework.version ? `(${analysis.backend.framework.version})` : ''}\n`;
+        const frameworkLabel = backendFrameworkName;
+        technologies += `- **Framework:** ${frameworkLabel} ${analysis.backend.framework.version ? `(${analysis.backend.framework.version})` : ''}\n`;
         if (analysis.backend.runtime) {
             technologies += `- **Runtime:** ${analysis.backend.runtime}\n`;
         }

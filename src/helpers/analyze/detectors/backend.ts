@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'glob';
-import { BackendAnalysis } from '../../../types/index';
+import { BackendAnalysis, Framework } from '../../../types/index';
 
 function createBackendAnalysisBase(): BackendAnalysis {
     return {
@@ -195,182 +195,220 @@ export async function detectBackend(projectPath: string): Promise<BackendAnalysi
 async function detectRuntimeAndFramework(projectPath: string): Promise<Partial<BackendAnalysis>> {
     const result: Partial<BackendAnalysis> = {};
 
-    // Check for runtime-specific files
     const runtimeChecks = [
-        // Node.js
         { files: ['package.json'], runtime: 'Node.js' },
-        // Python
         { files: ['requirements.txt', 'pyproject.toml', 'setup.py'], runtime: 'Python' },
-        // Java
         { files: ['pom.xml', 'build.gradle', 'build.sbt'], runtime: 'Java' },
-        // Go
         { files: ['go.mod', 'go.sum'], runtime: 'Go' },
-        // Rust
         { files: ['Cargo.toml', 'Cargo.lock'], runtime: 'Rust' },
-        // PHP
         { files: ['composer.json', 'composer.lock'], runtime: 'PHP' },
-        // Ruby
         { files: ['Gemfile', 'Gemfile.lock'], runtime: 'Ruby' },
-        // .NET
         { files: ['*.csproj', '*.sln', '*.fsproj'], runtime: '.NET' },
     ];
+
+    const runtimes = await detectRuntimes(projectPath, runtimeChecks);
+    if (runtimes.length > 0) {
+        result.runtimes = runtimes;
+        result.runtime = pickPrimaryRuntime(runtimes);
+    }
+
+    if (result.runtime) {
+        const frameworkDetection = await detectFrameworkByRuntime(projectPath, result.runtime);
+        if (frameworkDetection.primary) {
+            result.framework = frameworkDetection.primary;
+        }
+        if (frameworkDetection.frameworks && frameworkDetection.frameworks.length > 0) {
+            result.frameworks = frameworkDetection.frameworks;
+        }
+    }
+
+    return result;
+}
+
+async function detectRuntimes(
+    projectPath: string,
+    runtimeChecks: { files: string[]; runtime: string }[]
+): Promise<string[]> {
+    const found = new Set<string>();
 
     for (const check of runtimeChecks) {
         for (const filePattern of check.files) {
             try {
                 const files = await glob(filePattern, { cwd: projectPath, nodir: true });
                 if (files.length > 0) {
-                    result.runtime = check.runtime;
+                    found.add(check.runtime);
                     break;
                 }
             } catch {
                 // Continue checking
             }
         }
-        if (result.runtime) break;
     }
 
-    // Detect framework based on runtime and files
-    if (result.runtime) {
-        const frameworkDetection = await detectFrameworkByRuntime(projectPath, result.runtime);
-        if (frameworkDetection) {
-            result.framework = frameworkDetection;
-            result.frameworks = [frameworkDetection];
+    return Array.from(found);
+}
+
+function pickPrimaryRuntime(runtimes: string[]): string {
+    const priority = [
+        'Node.js',
+        'Python',
+        'Java',
+        'Go',
+        'Rust',
+        'PHP',
+        'Ruby',
+        '.NET',
+    ];
+
+    for (const runtime of priority) {
+        if (runtimes.includes(runtime)) {
+            return runtime;
         }
     }
 
-    return result;
+    return runtimes[0];
 }
 
-async function detectFrameworkByRuntime(projectPath: string, runtime: string): Promise<BackendAnalysis['framework'] | undefined> {
-    let result: BackendAnalysis['framework'] | undefined;
+async function detectFrameworkByRuntime(
+    projectPath: string,
+    runtime: string
+): Promise<{ primary?: Framework; frameworks?: Framework[] }> {
+    let primary: Framework | undefined;
+    let frameworks: Framework[] = [];
 
     switch (runtime) {
         case 'Node.js':
-            const nodeFramework = await detectNodeFramework(projectPath);
-            result = nodeFramework;
+            frameworks = await detectNodeFrameworks(projectPath);
+            primary = pickPrimaryFramework(frameworks);
             break;
 
         case 'Python':
-            const pythonFramework = await detectPythonFramework(projectPath);
-            result = pythonFramework;
+            primary = await detectPythonFramework(projectPath);
+            frameworks = primary ? [primary] : [];
             break;
 
         case 'Java':
-            const javaFramework = await detectJavaFramework(projectPath);
-            result = javaFramework;
+            primary = await detectJavaFramework(projectPath);
+            frameworks = primary ? [primary] : [];
             break;
 
         case 'Go':
-            const goFramework = await detectGoFramework(projectPath);
-            result = goFramework;
+            primary = await detectGoFramework(projectPath);
+            frameworks = primary ? [primary] : [];
             break;
 
         case 'Rust':
-            const rustFramework = await detectRustFramework(projectPath);
-            result = rustFramework;
+            primary = await detectRustFramework(projectPath);
+            frameworks = primary ? [primary] : [];
             break;
 
         case 'PHP':
-            const phpFramework = await detectPHPFramework(projectPath);
-            result = phpFramework;
+            primary = await detectPHPFramework(projectPath);
+            frameworks = primary ? [primary] : [];
             break;
 
         case 'Ruby':
-            const rubyFramework = await detectRubyFramework(projectPath);
-            result = rubyFramework;
+            primary = await detectRubyFramework(projectPath);
+            frameworks = primary ? [primary] : [];
             break;
 
         case '.NET':
-            const dotnetFramework = await detectDotNetFramework(projectPath);
-            result = dotnetFramework;
+            primary = await detectDotNetFramework(projectPath);
+            frameworks = primary ? [primary] : [];
             break;
     }
 
-    return result;
+    return { primary, frameworks };
 }
 
-async function detectNodeFramework(projectPath: string): Promise<BackendAnalysis['framework'] | undefined> {
-    const result: BackendAnalysis['framework'] = { name: 'Unknown' };
+async function detectNodeFrameworks(projectPath: string): Promise<Framework[]> {
+    let frameworks: Framework[] = [];
 
     try {
         const packageJson = await readPackageJson(projectPath);
-        if (!packageJson) return undefined;
+        if (!packageJson) return frameworks;
 
         const deps = {
             ...packageJson.dependencies,
             ...packageJson.devDependencies,
         };
 
-        // Express.js
         if (deps['express']) {
-            result.name = 'Express.js';
-            result.version = deps['express'];
-            result.server = 'Express';
+            frameworks.push({ name: 'Express.js', version: deps['express'], server: 'Express' });
         }
-        // Koa
-        else if (deps['koa']) {
-            result.name = 'Koa';
-            result.version = deps['koa'];
-            result.server = 'Koa';
+        if (deps['koa']) {
+            frameworks.push({ name: 'Koa', version: deps['koa'], server: 'Koa' });
         }
-        // Fastify
-        else if (deps['fastify']) {
-            result.name = 'Fastify';
-            result.version = deps['fastify'];
-            result.server = 'Fastify';
+        if (deps['fastify']) {
+            frameworks.push({ name: 'Fastify', version: deps['fastify'], server: 'Fastify' });
         }
-        // NestJS
-        else if (deps['@nestjs/core']) {
-            result.name = 'NestJS';
-            result.version = deps['@nestjs/core'];
-            result.server = 'Express/Fastify';
+        if (deps['@nestjs/core']) {
+            frameworks.push({ name: 'NestJS', version: deps['@nestjs/core'], server: 'Express/Fastify' });
         }
-        // Hapi
-        else if (deps['@hapi/hapi']) {
-            result.name = 'Hapi';
-            result.version = deps['@hapi/hapi'];
-            result.server = 'Hapi';
+        if (deps['@hapi/hapi']) {
+            frameworks.push({ name: 'Hapi', version: deps['@hapi/hapi'], server: 'Hapi' });
         }
-        // Sails.js
-        else if (deps['sails']) {
-            result.name = 'Sails.js';
-            result.version = deps['sails'];
-            result.server = 'Express';
+        if (deps['sails']) {
+            frameworks.push({ name: 'Sails.js', version: deps['sails'], server: 'Express' });
         }
-        // Meteor
-        else if (deps['meteor']) {
-            result.name = 'Meteor';
-            result.version = deps['meteor'];
+        if (deps['meteor']) {
+            frameworks.push({ name: 'Meteor', version: deps['meteor'] });
         }
-        // AdonisJS
-        else if (deps['@adonisjs/core']) {
-            result.name = 'AdonisJS';
-            result.version = deps['@adonisjs/core'];
-            result.server = 'Adonis';
+        if (deps['@adonisjs/core']) {
+            frameworks.push({ name: 'AdonisJS', version: deps['@adonisjs/core'], server: 'Adonis' });
         }
-        // LoopBack
-        else if (deps['@loopback/core']) {
-            result.name = 'LoopBack';
-            result.version = deps['@loopback/core'];
-            result.server = 'Express';
+        if (deps['@loopback/core']) {
+            frameworks.push({ name: 'LoopBack', version: deps['@loopback/core'], server: 'Express' });
         }
 
         // Check for serverless
-        if (deps['serverless'] || deps['@serverless/framework']) {
-            result.server = 'Serverless';
+        if ((deps['serverless'] || deps['@serverless/framework']) && frameworks.length > 0) {
+            frameworks = frameworks.map(framework => ({
+                ...framework,
+                server: framework.server ?? 'Serverless',
+            }));
         }
 
         // Check for TypeScript backend
-        if (deps['typescript'] && result.name !== 'Unknown') {
-            result.name = `${result.name} (TypeScript)`;
+        if (deps['typescript'] && frameworks.length > 0) {
+            frameworks = frameworks.map(framework => ({
+                ...framework,
+                name: framework.name.includes('(TypeScript)') ? framework.name : `${framework.name} (TypeScript)`,
+            }));
         }
 
     } catch (error) {
         console.error('Error detecting Node.js framework:', error);
     }
 
-    return result.name === 'Unknown' ? undefined : result;
+    return frameworks;
+}
+
+function pickPrimaryFramework(frameworks: Framework[]): Framework | undefined {
+    if (!frameworks.length) {
+        return undefined;
+    }
+
+    const priority = [
+        'NestJS',
+        'Express.js',
+        'Fastify',
+        'Koa',
+        'Hapi',
+        'Sails.js',
+        'AdonisJS',
+        'LoopBack',
+        'Meteor',
+    ];
+
+    for (const name of priority) {
+        const match = frameworks.find(framework => framework.name === name || framework.name.startsWith(`${name} `));
+        if (match) {
+            return match;
+        }
+    }
+
+    return frameworks[0];
 }
 
 async function detectPythonFramework(projectPath: string): Promise<BackendAnalysis['framework'] | undefined> {

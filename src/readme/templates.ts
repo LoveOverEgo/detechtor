@@ -1,6 +1,6 @@
-import { ProjectAnalysis } from "../types";
+import { Framework, ProjectAnalysis } from "../types";
 
-function getFrameworkName(framework: ProjectAnalysis['frontend']['framework'] | ProjectAnalysis['backend']['framework']): string {
+function getFrameworkName(framework: Framework): string {
     return framework?.name ?? 'Unknown';
 }
 

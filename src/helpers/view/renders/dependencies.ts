@@ -66,8 +66,8 @@ export function renderDependenciesSection(analysis: ProjectAnalysis): string {
                                 <span class="category-count">${deps.length}</span>
                             </div>
                             <div class="dependency-list virtualized" data-deps='${escapeHtml(JSON.stringify(deps))}'>
-                                <div class="dep-spacer"></div>
                                 <div class="dep-viewport"></div>
+                                <div class="dep-spacer"></div>
                             </div>
                         </div>
                     `).join('')}

@@ -280,7 +280,7 @@ function buildComponentsFromAnalysis(analysis: ProjectAnalysis): ComponentAnalys
         components.push({
             id: `${baseId}-frontend-1`,
             kind: 'frontend',
-            name: `${analysis.projectInfo?.name ?? 'Project'} Frontend`,
+            name: `${analysis.projectInfo?.name ?? 'Project'}`,
             technologies: collectFrontendTechnologies(analysis),
             frontend: analysis.frontend,
             ...baseData,
@@ -291,7 +291,7 @@ function buildComponentsFromAnalysis(analysis: ProjectAnalysis): ComponentAnalys
         components.push({
             id: `${baseId}-backend-1`,
             kind: 'backend',
-            name: `${analysis.projectInfo?.name ?? 'Project'} Backend`,
+            name: `${analysis.projectInfo?.name ?? 'Project'}`,
             technologies: collectBackendTechnologies(analysis),
             backend: analysis.backend,
             ...baseData,

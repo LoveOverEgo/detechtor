@@ -148,15 +148,13 @@
     gap: 2px;
 }
 
-.workspace-summary__item.is-selected {
-    border-left: 2px solid var(--vscode-textLink-foreground);
-    padding-left: 8px;
+.workspace-summary__item {
+    margin-bottom: 12px;
 }
 
-.workspace-summary__frameworks {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+.workspace-summary__item.is-selected {
+    border-left: 2px solid var(--vscode-textLink-foreground);
+    padding-left: 10px;
 }
 
 .workspace-summary__framework-tag {

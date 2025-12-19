@@ -1,10 +1,11 @@
-import { ProjectAnalysis } from '../types';
+import { Framework, ProjectAnalysis } from '../types';
+import { generateBadges, generateTableOfContents, generateInstallation, generateUsage, generateAPISection, generateContributing, generateLicense, generateContact, generateQuickStart } from './templates';
 
-function getFrameworkName(framework: ProjectAnalysis['frontend']['framework'] | ProjectAnalysis['backend']['framework']): string {
+function getFrameworkName(framework: Framework): string {
     return framework?.name ?? 'Unknown';
 }
 
-function getFrameworkNames(frameworks: ProjectAnalysis['frontend']['frameworks'] | ProjectAnalysis['backend']['frameworks']): string[] {
+function getFrameworkNames(frameworks: Framework[]): string[] {
     if (!frameworks || frameworks.length === 0) {
         return [];
     }
@@ -12,7 +13,7 @@ function getFrameworkNames(frameworks: ProjectAnalysis['frontend']['frameworks']
         .map(item => item?.name)
         .filter((name): name is string => Boolean(name));
 }
-import { generateBadges, generateTableOfContents, generateInstallation, generateUsage, generateAPISection, generateContributing, generateLicense, generateContact, generateQuickStart } from './templates';
+
 
 export interface ReadmeOptions {
     includeBadges?: boolean;
@@ -238,8 +239,6 @@ function generateFeatures(analysis: ProjectAnalysis): string {
     // Add framework-specific features
     const frontendFrameworkName = getFrameworkName(analysis.frontend.framework);
     const backendFrameworkName = getFrameworkName(analysis.backend.framework);
-    const frontendFrameworkNames = getFrameworkNames(analysis.frontend.frameworks);
-    const backendFrameworkNames = getFrameworkNames(analysis.backend.frameworks);
     const extraFrontendFrameworks = getFrameworkNames(analysis.frontend.frameworks).filter(name => name !== frontendFrameworkName);
     const extraBackendFrameworks = getFrameworkNames(analysis.backend.frameworks).filter(name => name !== backendFrameworkName);
 

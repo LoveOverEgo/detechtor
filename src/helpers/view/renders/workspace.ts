@@ -1,4 +1,4 @@
-import { WorkspaceAnalysis } from "../../../types";
+import { WorkspaceAnalysis, WorkspaceComponentRef } from "../../../types";
 import { escapeHtml } from "../converters/strings";
 
 export function renderWorkspaceSummary(
@@ -12,14 +12,12 @@ export function renderWorkspaceSummary(
     const projectCount = workspace.summary.projectCount;
     const frontendList = workspace.summary.frontendComponents ?? [];
     const backendList = workspace.summary.backendComponents ?? [];
-    const selectedComponents = [...frontendList, ...backendList].filter(item => item.projectId === selectedProjectId);
     const options = workspace.roots.map(root => {
         const isSelected = root.id === selectedProjectId ? 'selected' : '';
-        const hints = root.typeHints.length ? ` (${root.typeHints.join(', ')})` : '';
-        return `<option value="${escapeHtml(root.id)}" ${isSelected}>${escapeHtml(root.name)}${escapeHtml(hints)}</option>`;
+        return `<option value="${escapeHtml(root.id)}" ${isSelected}>${escapeHtml(root.name)}</option>`;
     }).join('');
 
-    const renderComponentList = (items: typeof frontendList) => {
+    const renderComponentList = (items: WorkspaceComponentRef[]) => {
         if (items.length === 0) {
             return '<div class="workspace-summary__empty">None detected</div>';
         }
@@ -29,14 +27,14 @@ export function renderWorkspaceSummary(
                     <li class="workspace-summary__item ${item.projectId === selectedProjectId ? 'is-selected' : ''}"
                         data-kind="${escapeHtml(item.kind)}"
                         data-frameworks="${escapeHtml((item.frameworks ?? []).join(',').toLowerCase())}">
-                        <span class="workspace-summary__badge">${escapeHtml(item.name)}</span>
-                        ${item.frameworks && item.frameworks.length > 0 ? `
-                            <div class="workspace-summary__frameworks">
+                        <span>
+                            <span class="workspace-summary__badge">${escapeHtml(item.name)}</span>
+                            ${item.frameworks && item.frameworks.length > 0 ? `
                                 ${item.frameworks.map(framework => `
                                     <span class="workspace-summary__framework-tag">${escapeHtml(framework)}</span>
                                 `).join('')}
-                            </div>
-                        ` : ''}
+                            ` : ''}
+                        </span>
                         <button class="workspace-summary__select" data-project-id="${escapeHtml(item.projectId)}">
                             ${escapeHtml(item.rootPath)}
                         </button>
@@ -76,12 +74,6 @@ export function renderWorkspaceSummary(
             <button type="button" class="workspace-filter-reset">Reset</button>
             <span class="workspace-filter-status">Filters: none</span>
         </div>
-        ${selectedComponents.length > 0 ? `
-            <div class="workspace-summary__group workspace-summary__selected">
-                <div class="workspace-summary__group-title">Selected Project <span class="workspace-group-count" data-kind="selected">(${selectedComponents.length})</span></div>
-                ${renderComponentList(selectedComponents)}
-            </div>
-        ` : ''}
         <div class="workspace-summary__groups">
             <div class="workspace-summary__group">
                 <div class="workspace-summary__group-title">Frontends (${frontendList.length}) <span class="workspace-group-count" data-kind="frontend" data-total="${frontendList.length}">(0/${frontendList.length})</span></div>

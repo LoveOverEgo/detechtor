@@ -60,7 +60,7 @@ export interface TechnologyDescriptor {
 
 export interface FrontendAnalysis {
     framework: Framework;
-    frameworks?: Framework[];
+    frameworks: Framework[];
     hasRouter: boolean;
     hasStateManagement: boolean;
     buildTool?: string;
@@ -102,7 +102,7 @@ export interface Framework {
 
 export interface BackendAnalysis {
     framework: Framework;
-    frameworks?: Framework[];
+    frameworks: Framework[];
     runtime?: string;
     runtimes?: string[];
     servers?: string[];
